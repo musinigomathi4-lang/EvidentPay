@@ -1,0 +1,11 @@
+screenshot_id,amount_inr,sender_name,date,time,utr,payment_app,extraction_notes,is_test_data
+TEST001,14,KAMBALA SURESH,2026-10-07,10:00 am,764179824915,Google Pay,Amount display has an obscured/blank space after 14.,TRUE
+TEST002,400,Vastra Designer Boutique,2026-10-01,7:25 pm,62749868005,Google Pay,UTR is 11 digits instead of standard 12 digits.,TRUE
+TEST003,390,Madhavi Prudhivi,2026-09-22,2:11 pm,374580137294,Google Pay,First digit of UTR is partially obscured by a black box.,TRUE
+TEST004,500,KAMBALA SURESH,2026-09-22,11:34 am,881587335683,Google Pay,,TRUE
+TEST005,1600,Suresh Maddali,2026-09-15,10:31 am,543656614964,Google Pay,,TRUE
+TEST006,2500,Ashutosh Mishra,2026-05-02,3:21 pm,648816124351,Google Pay,Amount display has a dark smudge/obscured area.,TRUE
+TEST007,500,ramu Potnuru,2026-04-29,5:22 pm,126541808740,Google Pay,,TRUE
+TEST008,500,KESHAM KALAVATHI,2025-12-10,12:42 pm,242026593859,Google Pay,Date year is displayed as 2025.,TRUE
+TEST009,60,Suresh Maddali,2026-04-06,9:41 am,609688614522,Google Pay,Amount has an obscured/faded digit area.,TRUE
+TEST010,12500,Ashutosh Mishra,2026-04-01,7:37 pm,645705366842,Google Pay,,TRUE
