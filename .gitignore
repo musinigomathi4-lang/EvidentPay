@@ -1,8 +1,11 @@
+
 # Python
 __pycache__/
 *.py[cod]
 venv/
 .venv/
+
+# Environment variables
 .env
 .env.*
 !.env.example
@@ -12,9 +15,20 @@ venv/
 *.sqlite
 *.sqlite3
 
-# Uploaded/runtime files
+# Uploads: ignore everything by default
 uploads/*
 !uploads/.gitkeep
+
+# Allow synthetic screenshot dataset
+!uploads/screenshots/
+uploads/screenshots/*
+!uploads/screenshots/fake_ss/
+!uploads/screenshots/fake_ss/**
+
+# Synthetic CSV datasets
+!data/
+data/*
+!data/*.csv
 
 # Frontend
 node_modules/
