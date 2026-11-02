@@ -50,6 +50,12 @@ def extract_amount(img) -> dict:
     return {"amount": amount_to_int(text), "amount_text": text, "flags": flags}
 
 
+def _mean_confidence(img) -> float:
+    d = pytesseract.image_to_data(img, config="--psm 4", output_type=pytesseract.Output.DICT)
+    confs = [float(c) for c, t in zip(d["conf"], d["text"]) if str(t).strip() and float(c) >= 0]
+    return round(sum(confs) / len(confs), 2) if confs else 0.0
+
+
 def extract_text_fields(img) -> dict:
     text = pytesseract.image_to_string(img, config="--psm 4")
     flags = []
@@ -67,6 +73,8 @@ def extract_text_fields(img) -> dict:
         "utr": utr,
         "date": dt.strftime("%Y-%m-%d %H:%M") if dt else None,
         "status": "Completed" if re.search(r"Completed", text, re.I) else None,
+        "raw_text": text,
+        "confidence": _mean_confidence(img),
         "flags": flags,
     }
 
@@ -83,6 +91,8 @@ def extract_payment(path) -> dict:
         "utr": txt["utr"],
         "date": txt["date"],
         "status": txt["status"],
+        "raw_text": txt["raw_text"],      # original OCR text, kept for the review page
+        "confidence": txt["confidence"],  # mean word confidence of the full-page read
         "flags": flags,
         "needs_review": bool(flags) or txt["status"] is None,
     }
