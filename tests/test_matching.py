@@ -1,4 +1,3 @@
-
 """Tests for statement reading, duplicate claims and reconciliation.
 
     python tests/test_matching.py          Run unit tests
@@ -18,17 +17,18 @@ sys.path.insert(0, str(ROOT))
 from backend.app.services.matching_service import (
     match_payments, MATCHED, AMOUNT_MISMATCH, UTR_NOT_FOUND,
     OUTSIDE_STATEMENT_PERIOD, DUPLICATE_CLAIM, NEEDS_REVIEW,
+    SENDER_NAME_MISMATCH,
 )
 from backend.app.services.statement_service import load_statement_csv
 from backend.app.services.duplicate_service import find_duplicate_claims
 
 
-def txn(row, utr, credit, day, debit=0):
+def txn(row, utr, credit, day, debit=0, description=""):
     return {
         "row": row, "utr": utr,
         "credit": Decimal(credit), "debit": Decimal(debit),
         "date": datetime.strptime(day, "%Y-%m-%d"),
-        "description": ""
+        "description": description
     }
 
 
@@ -127,6 +127,89 @@ def test_statement_csv_with_utr_inside_narration():
     assert t[0]["utr"] == "614614352249" and t[0]["credit"] == Decimal("90.00")
     assert t[0]["date"] == datetime(2026, 5, 26)
     assert t[1]["debit"] == Decimal("200.00") and t[1]["credit"] == 0
+
+
+# --- Characterization tests: sender-name check and status precedence (existing behaviour) ---
+
+NAMED_BANK = [txn(1, "543656614964", 1600, "2026-09-15", description="Received from Punna Vanitha")]
+
+
+def named(payment):
+    return match_payments([payment], NAMED_BANK)[0]
+
+
+def test_sender_name_mismatch_when_both_names_available():
+    r = named(pay("a", "543656614964", 1600, "2026-09-15 10:31", sender_name="Suresh Maddali"))
+    assert r["status"] == SENDER_NAME_MISMATCH
+    assert r["checks"]["sender_matched"] is False
+    assert any("sender_name" in x for x in r["reasons"])
+
+
+def test_sender_name_ignores_case_spacing_and_punctuation():
+    r = named(pay("a", "543656614964", 1600, "2026-09-15 10:31", sender_name="PUNNA   vanitha."))
+    assert r["status"] == MATCHED and r["checks"]["sender_matched"] is True
+
+
+def test_sender_not_compared_when_either_name_is_missing():
+    r = named(pay("a", "543656614964", 1600, "2026-09-15 10:31"))  # screenshot name missing
+    assert r["status"] == MATCHED and "sender_matched" not in r["checks"]
+    no_bank_name = [txn(1, "543656614964", 1600, "2026-09-15", description="UPI credit")]
+    r = match_payments([pay("a", "543656614964", 1600, "2026-09-15 10:31",
+                            sender_name="Suresh Maddali")], no_bank_name)[0]
+    assert r["status"] == MATCHED and "sender_matched" not in r["checks"]  # bank name missing
+
+
+def test_amount_mismatch_takes_precedence_over_sender_mismatch():
+    r = named(pay("a", "543656614964", 160, "2026-09-15 10:31", sender_name="Suresh Maddali"))
+    assert r["status"] == AMOUNT_MISMATCH
+
+
+def test_date_review_takes_precedence_over_sender_mismatch():
+    r = named(pay("a", "543656614964", 1600, "2026-01-01 10:31", sender_name="Suresh Maddali"))
+    assert r["status"] == NEEDS_REVIEW
+
+
+# --- Unreadable amount: nothing was read, so nothing can mismatch -> NEEDS_REVIEW ---
+
+def test_unreadable_amount_needs_review_not_amount_mismatch():
+    r = status_of(pay("a", "614614352249", None, "2026-05-26 17:35"))
+    assert r["status"] == NEEDS_REVIEW
+    assert r["reasons"][0] == "amount_unreadable"
+    assert r["checks"]["amount_matched"] is None          # unknown, not False
+    assert not any("amount screenshot=" in x for x in r["reasons"])  # no fake comparison
+
+
+def test_unreadable_amount_keeps_ocr_flags_and_bank_evidence():
+    r = status_of(pay("a", "614614352249", None, "2026-05-26 17:35",
+                      needs_review=True, flags=["no_valid_amount_reading"]))
+    assert r["status"] == NEEDS_REVIEW
+    assert "no_valid_amount_reading" in r["reasons"]
+    assert r["checks"]["utr_matched"] is True and r["bank_transaction"]["utr"] == "614614352249"
+
+
+def test_unparseable_amount_text_is_treated_as_unreadable():
+    assert status_of(pay("a", "614614352249", "abc", "2026-05-26 17:35"))["status"] == NEEDS_REVIEW
+
+
+def test_zero_amount_is_a_real_value_not_unreadable():
+    r = status_of(pay("a", "614614352249", 0, "2026-05-26 17:35"))
+    assert r["status"] == AMOUNT_MISMATCH and r["checks"]["amount_matched"] is False
+
+
+def test_unreadable_amount_does_not_change_unmatched_utr_statuses():
+    assert status_of(pay("a", "222222222222", None, "2026-06-10 10:00"))["status"] == UTR_NOT_FOUND
+    assert status_of(pay("a", "222222222222", None, "2026-12-25 10:00"))["status"] == OUTSIDE_STATEMENT_PERIOD
+
+
+def test_unreadable_amount_still_reports_duplicate_claim():
+    rs = match_payments([pay("24", "615315443838", 5000, "2026-06-02 05:53"),
+                         pay("25", "615315443838", None, "2026-06-02 05:53")], BANK)
+    assert [r["status"] for r in rs] == [MATCHED, DUPLICATE_CLAIM]
+
+
+def test_unreadable_amount_still_records_sender_mismatch_in_reasons():
+    r = named(pay("a", "543656614964", None, "2026-09-15 10:31", sender_name="Suresh Maddali"))
+    assert r["status"] == NEEDS_REVIEW and any("sender_name" in x for x in r["reasons"])
 
 
 def run_dataset(filename, label, show_all=False):

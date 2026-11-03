@@ -1,5 +1,5 @@
 
-"""End-to-end test: fake screenshot images -> OCR -> reconciliation."""
+"""End-to-end test: fake screenshots -> OCR -> bank reconciliation."""
 
 import csv
 import sys
@@ -14,11 +14,12 @@ from backend.app.services.statement_service import load_statement_csv
 from backend.app.services.matching_service import match_payments
 from backend.app.utils.helpers import parse_amount, parse_date
 
+
 IMAGE_DIR = ROOT / "uploads" / "screenshots" / "fake_ss"
 GROUND_TRUTH = ROOT / "data" / "test_screenshot_data.csv"
 BANK_FILE = ROOT / "data" / "bank_statement.csv"
 
-# Explicit mapping based on the actual image contents and OCR output.
+
 IMAGE_MAP = {
     "TEST001": "outofstatemnt.jpg",
     "TEST002": "outofstatement.jpg",
@@ -55,12 +56,15 @@ def main():
     with open(GROUND_TRUTH, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
 
+    # Original bank statement is the only source of bank evidence.
     transactions = load_statement_csv(BANK_FILE)
 
     payments = []
     extraction_results = []
 
-    print("\n========== EVIDENTPAY FAKE IMAGE PIPELINE ==========\n")
+    print("\n========== EVIDENTPAY FAKE IMAGE PIPELINE ==========")
+    print("OCR ground truth: test_screenshot_data.csv")
+    print("Bank evidence:    bank_statement.csv")
 
     for row in rows:
         screenshot_id = row["screenshot_id"]
@@ -81,6 +85,7 @@ def main():
         except Exception as exc:
             sys.exit(f"OCR failed for {filename}: {exc}")
 
+        # Ground truth is used ONLY to evaluate OCR accuracy.
         true_amount = parse_amount(row["amount_inr"])
         true_utr = str(row["utr"]).strip() or None
         true_date = expected_date(row)
@@ -98,10 +103,23 @@ def main():
             else true_date is None and actual_date is None
         )
 
-        print(f"Amount: {actual_amount} | Expected: {true_amount} | {'OK' if amount_ok else 'WRONG'}")
-        print(f"UTR: {actual_utr} | Expected: {true_utr} | {'OK' if utr_ok else 'WRONG'}")
-        print(f"Date: {actual_date} | Expected: {true_date} | {'OK' if date_ok else 'WRONG'}")
-        print(f"Flags: {extracted['flags'] or 'None'}")
+        print("\n  OCR ACCURACY (screenshot ground truth)")
+        print(
+            f"  Amount: {actual_amount} | "
+            f"Screenshot ground truth: {true_amount} | "
+            f"{'OK' if amount_ok else 'WRONG'}"
+        )
+        print(
+            f"  UTR: {actual_utr} | "
+            f"Screenshot ground truth: {true_utr} | "
+            f"{'OK' if utr_ok else 'WRONG'}"
+        )
+        print(
+            f"  Date: {actual_date} | "
+            f"Screenshot ground truth: {true_date} | "
+            f"{'OK' if date_ok else 'WRONG'}"
+        )
+        print(f"  OCR flags: {extracted['flags'] or 'None'}")
 
         extraction_results.append({
             "id": screenshot_id,
@@ -111,7 +129,8 @@ def main():
             "flags": extracted["flags"],
         })
 
-        # Reconciliation receives OCR output, never ground-truth values.
+        # IMPORTANT:
+        # Reconciliation receives OCR output, NOT ground-truth CSV values.
         payments.append({
             "id": screenshot_id,
             "amount": extracted["amount"],
@@ -121,7 +140,8 @@ def main():
             "flags": extracted["flags"],
         })
 
-    print("\n========== BANK RECONCILIATION ==========\n")
+    print("\n========== BANK RECONCILIATION ==========")
+    print("Comparing OCR-extracted claims against original bank statement.")
 
     results = match_payments(payments, transactions)
 
@@ -131,12 +151,21 @@ def main():
         status = result["status"]
         counts[status] = counts.get(status, 0) + 1
 
-        print(
-            f"{result['payment_id']}: {status} "
-            f"| Reasons: {result['reasons']}"
-        )
+        print(f"\n{result['payment_id']}: {status}")
+        print(f"  Reasons: {result['reasons']}")
 
-    print("\n========== OCR ACCURACY SUMMARY ==========\n")
+        bank_txn = result.get("bank_transaction")
+
+        if bank_txn:
+            print("  Bank evidence:")
+            print(f"    Transaction row: {bank_txn['row']}")
+            print(f"    Bank UTR:        {bank_txn['utr']}")
+            print(f"    Bank amount:     {bank_txn['credit']}")
+            print(f"    Bank date:       {bank_txn['date']}")
+        else:
+            print("  Bank evidence: No matching transaction identified.")
+
+    print("\n========== OCR ACCURACY SUMMARY ==========")
 
     total = len(extraction_results)
 
@@ -154,9 +183,11 @@ def main():
     print(f"\nAll fields correct: {fully_correct}/{total}")
     print(f"Flagged for review: {flagged}/{total}")
 
-    print("\n========== RECONCILIATION SUMMARY ==========\n")
+    print("\n========== RECONCILIATION SUMMARY ==========")
     print(f"Total screenshots: {len(results)}")
-    print(f"Results: {counts}")
+
+    for status, count in counts.items():
+        print(f"{status}: {count}")
 
     print("\nPipeline test completed.")
 

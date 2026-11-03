@@ -1,4 +1,3 @@
-
 """Reconciliation: compare screenshot payments with bank statement credits.
 
 Deterministic Python only. No LLM decides whether a payment is genuine.
@@ -122,13 +121,19 @@ def match_payment(payment, by_utr, all_utrs, period,
             txn, utr_ok=True,
         )
 
-    # Amount comparison
-    amount_ok = amount is not None and amount == txn["credit"]
+    # Amount comparison. A missing/unreadable screenshot amount is never a
+    # mismatch: nothing was read, so nothing can be compared. It needs a human.
+    amount_ok = None
 
-    if not amount_ok:
-        reasons.append(
-            f"amount screenshot={amount} bank={txn['credit']}"
-        )
+    if amount is None:
+        reasons[0:0] = ["amount_unreadable"] + ocr_flags
+    else:
+        amount_ok = amount == txn["credit"]
+
+        if not amount_ok:
+            reasons.append(
+                f"amount screenshot={amount} bank={txn['credit']}"
+            )
 
     # Date comparison
     date_ok = None
@@ -164,7 +169,9 @@ def match_payment(payment, by_utr, all_utrs, period,
             )
 
     # Determine final status
-    if not amount_ok:
+    if amount is None:
+        status = NEEDS_REVIEW
+    elif not amount_ok:
         status = AMOUNT_MISMATCH
     elif date_ok is not True:
         status = NEEDS_REVIEW
