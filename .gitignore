@@ -2,41 +2,42 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
 venv/
+myenv/
+.env/
 .venv/
 
-# Environment variables
+# Environment secrets
 .env
 .env.*
 !.env.example
 
-# Database
+# SQLite databases
 *.db
 *.sqlite
 *.sqlite3
 
-# Uploads: ignore everything by default
-uploads/*
-!uploads/.gitkeep
-
-# Allow synthetic screenshot dataset
-!uploads/screenshots/
-uploads/screenshots/*
-!uploads/screenshots/fake_ss/
-!uploads/screenshots/fake_ss/**
-
-# Synthetic CSV datasets
-!data/
-data/*
-!data/*.csv
-
 # Frontend
 node_modules/
-dist/
-.vite/
+frontend/dist/
+frontend/.vite/
 
-# Editors and operating system
+# IDE
 .vscode/
 .idea/
+
+# OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
