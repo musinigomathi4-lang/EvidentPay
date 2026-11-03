@@ -1,20 +1,20 @@
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from app.database import init_db
-from fastapi.openapi.utils import get_openapi
 from app.routes.upload import router as upload_router
+from app.routes.history import router as history_router
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize SQLite database when the application starts
     init_db()
 
     yield
 
-    # Application shutdown
     print("EvidentPay backend shutting down...")
 
 
@@ -23,6 +23,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -30,7 +31,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 app.include_router(upload_router)
+app.include_router(history_router)
+
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -63,14 +69,18 @@ def custom_openapi():
     file_items["format"] = "binary"
 
     app.openapi_schema = openapi_schema
+
     return app.openapi_schema
 
 
 app.openapi = custom_openapi
 
+
 @app.get("/")
 def home():
-    return {"message": "EvidentPay backend is running!"}
+    return {
+        "message": "EvidentPay backend is running!"
+    }
 
 
 @app.get("/api/health")

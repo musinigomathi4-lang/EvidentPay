@@ -387,3 +387,61 @@ def get_reconciliation_results(event_id):
 
     finally:
         db.close()
+# --------------------------------------------------
+# 5. EVENT HISTORY OPERATIONS
+# --------------------------------------------------
+
+def get_all_events():
+    """Retrieve all events with their claim and reconciliation counts."""
+
+    db = SessionLocal()
+
+    try:
+        events = (
+            db.query(Event)
+            .order_by(Event.created_at.desc())
+            .all()
+        )
+
+        event_history = []
+
+        for event in events:
+            total_claims = (
+                db.query(PaymentClaim)
+                .filter(PaymentClaim.event_id == event.event_id)
+                .count()
+            )
+
+            total_bank_transactions = (
+                db.query(BankTransaction)
+                .filter(BankTransaction.event_id == event.event_id)
+                .count()
+            )
+
+            total_results = (
+                db.query(ReconciliationResult)
+                .join(PaymentClaim)
+                .filter(PaymentClaim.event_id == event.event_id)
+                .count()
+            )
+
+            event_history.append({
+                "event_id": event.event_id,
+                "event_name": event.event_name,
+                "event_price": str(event.event_price),
+                "expected_participant_count": (
+                    event.expected_participant_count
+                ),
+                "created_at": (
+                    event.created_at.isoformat()
+                    if event.created_at else None
+                ),
+                "total_claims": total_claims,
+                "total_bank_transactions": total_bank_transactions,
+                "total_results": total_results,
+            })
+
+        return event_history
+
+    finally:
+        db.close()
