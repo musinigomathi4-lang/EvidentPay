@@ -1,0 +1,11 @@
+original_filename,modified_filename,phash_distance,original_ela_mean,modified_ela_mean,edge_difference_percent,localized_changed_pixel_percent,regions_detected
+1.jpeg,outofstatemnt.jpg,6,0.14,0.099,0.5,2.439,61
+2.jpeg,outofstatement.jpg,2,0.143,0.096,0.274,0.234,50
+3.jpeg,utr.jpg,0,0.117,0.082,0.458,1.343,37
+4.jpeg,amtchange(3).jpg,4,0.142,0.099,0.417,1.508,72
+5.jpeg,namechange.jpg,0,0.133,0.099,0.554,1.699,48
+34.jpeg,amtchange.jpeg,0,0.132,0.162,0.099,0.186,1
+35.jpeg,utrchange.jpeg,2,0.134,0.172,0.219,0.568,1
+36.jpeg,datechange.jpeg,0,0.14,0.177,0.173,0.483,1
+37.jpeg,amtchange (2).jpeg,6,0.132,0.162,0.125,0.383,2
+38.jpeg,namechange(2).jpeg,0,0.147,0.182,0.223,0.721,1
