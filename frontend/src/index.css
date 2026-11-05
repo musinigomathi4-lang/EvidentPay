@@ -12,9 +12,7 @@
   --soft-brown: #c7a989;
   --border: #e8ddce;
   --muted: #948779;
-  --green: #66845b;
-  --green-bg: #e7eddf;
-}
+  }
 
 * {
   margin: 0;
@@ -375,8 +373,8 @@ button {
 
 .page-content {
   flex: 1;
-  padding: 28px 32px;
-  max-width: 1600px;
+  padding: 34px 42px;
+  max-width: 1500px;
   width: 100%;
   margin: 0 auto;
 }
@@ -404,7 +402,7 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 20px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .section-label {
@@ -494,8 +492,8 @@ button {
   padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 3px 10px rgba(65, 43, 27, 0.035);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(65, 43, 27, 0.045);
   transition: 0.2s;
 }
 
@@ -517,11 +515,6 @@ button {
 .icon-beige {
   background: #eee0cb;
   color: #67472f;
-}
-
-.icon-green {
-  background: var(--green-bg);
-  color: var(--green);
 }
 
 .icon-orange {
@@ -557,8 +550,8 @@ button {
 .content-panel {
   background: #fbfaf5;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 23px;
+  border-radius: 18px;
+  padding: 27px;
   box-shadow: 0 3px 12px rgba(65, 43, 27, 0.035);
 }
 
@@ -620,8 +613,8 @@ button {
 
 .events-table th {
   text-align: left;
-  padding: 15px 17px;
-  font-size: 12px;
+  padding: 16px 18px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--brown);
   white-space: nowrap;
@@ -636,7 +629,7 @@ button {
 }
 
 .events-table td {
-  padding: 15px 17px;
+  padding: 17px 18px;
   font-size: 13px;
   border-bottom: 1px solid #eee7dc;
   color: #594533;
@@ -668,12 +661,12 @@ button {
   font-weight: 600;
 }
 
-.verified {
-  background: #e8eddf;
-  color: #5e7951;
+.status-verified {
+  background: #e8dfd3;
+  color: #68472f;
 }
 
-.pending {
+.status-pending {
   background: #f3e5d5;
   color: #9b7148;
 }
@@ -733,10 +726,10 @@ button {
 }
 
 .upload-box {
-  min-height: 290px;
-  border: 1.5px dashed #cbb69c;
+  min-height: 320px;
+  border: 1.5px dashed #c9b49a;
   border-radius: 13px;
-  background: #f7f3eb;
+  background: linear-gradient(180deg, #faf7f0 0%, #f4eee4 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -887,7 +880,7 @@ button {
   }
 
   .page-content {
-    padding: 25px 20px;
+    padding: 28px 24px;
   }
 
   .stats-grid {
@@ -991,7 +984,7 @@ button {
   }
 
   .page-content {
-    padding: 20px 12px;
+    padding: 22px 16px;
   }
 
   .page-heading h1 {
