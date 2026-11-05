@@ -9,7 +9,6 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   UserRound,
   CalendarDays,
   CheckCircle2,
@@ -247,8 +246,8 @@ function App() {
             {notificationOpen && (
               <div className="notification-popup">
                 <strong>Notifications</strong>
-                <p>You are viewing your local workspace.</p>
-                <p>Check pending payment reviews.</p>
+                <p>1 payment record is currently pending review.</p>
+                <p>Open History to review recent activity.</p>
               </div>
             )}
 
@@ -294,7 +293,7 @@ function App() {
                 onClick={() => setActivePage("New verification")}
               >
                 <CreditCard size={18} />
-                New verification
+                Start verification
                 <ArrowRight size={17} />
               </button>
 
@@ -318,7 +317,7 @@ function App() {
               </div>
 
               <div className="stat-card">
-                <div className="stat-icon icon-green">
+                <div className="stat-icon icon-beige">
                   <CheckCircle2 size={25} />
                 </div>
 
@@ -408,8 +407,8 @@ function App() {
                           <span
                             className={`status ${
                               event.status === "Verified"
-                                ? "verified"
-                                : "pending"
+                                ? "status-verified"
+                                : "status-pending"
                             }`}
                           >
                             {event.status}
@@ -499,7 +498,7 @@ function App() {
                   </thead>
 
                   <tbody>
-                    {filteredEvents.map((event) => (
+                    {filteredEvents.length > 0 ? filteredEvents.map((event) => (
                       <tr key={event.id}>
                         <td>
                           <strong>{event.name}</strong>
@@ -522,7 +521,13 @@ function App() {
                           </span>
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan="5" className="empty-message">
+                          No payment records match your search.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
 
                 </table>
