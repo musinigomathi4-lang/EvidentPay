@@ -63,6 +63,7 @@ function App() {
   const [statement, setStatement] = useState(null);
   const [uploadSummary, setUploadSummary] = useState(null);
   const [statementSummary, setStatementSummary] = useState(null);
+  const [reviewMode, setReviewMode] = useState("bank");
 
   async function loadEvents() {
     setLoading(true);
@@ -107,7 +108,7 @@ function App() {
   const totalResults = events.reduce((sum, event) => sum + Number(event.total_results || 0), 0);
   const processedEvents = events.filter((event) => Number(event.total_results || 0) > 0).length;
   const matchedCount = results.filter((item) => String(item.status).toLowerCase() === "matched").length;
-  const attentionCount = results.filter((item) => statusTone(item.status) === "review").length;
+  const attentionCount = results.filter((item) => statusTone(item.status) === "review" || String(item.status).toLowerCase().includes("unverified")).length;
 
   function startNewEvent() {
     setEventName("");
@@ -117,6 +118,7 @@ function App() {
     setStatement(null);
     setUploadSummary(null);
     setStatementSummary(null);
+    setReviewMode("bank");
     setSelectedEvent(null);
     setError("");
     setNotice("");
@@ -157,68 +159,88 @@ function App() {
     }
   }
 
-  async function uploadScreenshots() {
-    if (!selectedEvent || screenshots.length === 0) return;
-    setBusy("screenshots");
-    setError("");
-    setNotice("");
-    const body = new FormData();
-    screenshots.forEach((file) => body.append("files", file));
-    try {
+  async function uploadSelectedFiles() {
+    if (!selectedEvent) throw new Error("Create an event first.");
+    let uploadedClaims = Number(selectedEvent.total_claims || 0);
+    let importedTransactions = Number(selectedEvent.total_bank_transactions || 0);
+
+    if (screenshots.length) {
+      const body = new FormData();
+      screenshots.forEach((file) => body.append("files", file));
       const data = await apiRequest("/api/events/" + selectedEvent.event_id + "/screenshots", {
         method: "POST", body
       });
       setUploadSummary(data);
+      uploadedClaims += Number(data.successful || 0);
       setScreenshots([]);
-      setNotice(data.successful + " screenshot(s) processed. " + data.failed + " failed.");
-      await loadEvents();
-      setSelectedEvent((current) => current ? { ...current, total_claims: Number(current.total_claims || 0) + Number(data.successful || 0) } : current);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy("");
+      if (data.failed) {
+        const failed = (data.results || []).filter((item) => item.status === "failed");
+        if (failed.length) throw new Error(
+          data.successful + " screenshot(s) processed, " + data.failed +
+          " failed: " + failed.map((item) => item.filename + " — " + item.error).join("; ")
+        );
+      }
+      if (!data.successful && screenshots.length) throw new Error("No screenshots could be processed.");
     }
-  }
 
-  async function uploadStatement() {
-    if (!selectedEvent || !statement) return;
-    setBusy("statement");
-    setError("");
-    setNotice("");
-    const body = new FormData();
-    body.append("file", statement);
-    try {
+    if (reviewMode === "bank" && statement) {
+      const body = new FormData();
+      body.append("file", statement);
       const data = await apiRequest("/api/events/" + selectedEvent.event_id + "/statement", {
         method: "POST", body
       });
       setStatementSummary(data);
+      importedTransactions += Number(data.total_transactions || 0);
       setStatement(null);
-      setNotice(data.message || "Bank statement imported.");
-      await loadEvents();
-      setSelectedEvent((current) => current ? { ...current, total_bank_transactions: Number(data.total_transactions || current.total_bank_transactions || 0) } : current);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy("");
     }
+
+    setSelectedEvent((current) => current ? {
+      ...current,
+      total_claims: uploadedClaims,
+      total_bank_transactions: importedTransactions
+    } : current);
+    return { uploadedClaims, importedTransactions };
   }
 
-  async function reconcile() {
+  async function runVerification() {
     if (!selectedEvent) return;
-    setBusy("reconcile");
+    if (!screenshots.length && !Number(selectedEvent.total_claims || 0)) {
+      setError("Add at least one payment screenshot to begin.");
+      return;
+    }
+    if (reviewMode === "bank" && !statement && !Number(selectedEvent.total_bank_transactions || 0)) {
+      setError("Choose a bank statement, or use the No bank statement option below.");
+      return;
+    }
+
+    setBusy("verification");
     setError("");
     setNotice("");
     try {
-      const data = await apiRequest("/api/events/" + selectedEvent.event_id + "/reconcile", { method: "POST" });
-      setNotice(data.message || "Reconciliation completed.");
+      const { uploadedClaims, importedTransactions } = await uploadSelectedFiles();
+      const endpoint = reviewMode === "bank"
+        ? "/api/events/" + selectedEvent.event_id + "/reconcile"
+        : "/api/events/" + selectedEvent.event_id + "/analyze-without-statement";
+      const data = await apiRequest(endpoint, { method: "POST" });
+      const [claimData, resultData] = await Promise.all([
+        apiRequest("/api/events/" + selectedEvent.event_id + "/claims"),
+        apiRequest("/api/events/" + selectedEvent.event_id + "/results")
+      ]);
+      setClaims(claimData.claims || []);
+      setResults(resultData.results || []);
+      setSelectedEvent((current) => current ? {
+        ...current,
+        total_claims: uploadedClaims,
+        total_bank_transactions: importedTransactions,
+        total_results: data.total_reconciled || 0
+      } : current);
       await loadEvents();
-      await loadEventData({ ...selectedEvent, total_results: data.total_reconciled });
+      setNotice(reviewMode === "bank"
+        ? "Verification complete. " + (data.summary?.MATCHED || data.summary?.matched || 0) + " payment(s) matched against bank credits."
+        : "Screenshot-only review complete. These claims remain UNVERIFIED because no bank statement was supplied.");
+      setPage("event");
     } catch (err) {
       setError(err.message);
-      try {
-        const refreshed = await apiRequest("/api/events/" + selectedEvent.event_id + "/results");
-        setResults(refreshed.results || []);
-      } catch {}
     } finally {
       setBusy("");
     }
@@ -322,28 +344,41 @@ function App() {
             <form className="create-form" onSubmit={createEvent}>
               <div className="form-overline"><span>EVENT SETUP</span><span>01 / 03</span></div>
               <label>What are we collecting for?<input required maxLength="150" placeholder="e.g. TechFest 2026" value={eventName} onChange={e=>setEventName(e.target.value)}/></label>
-              <div className="form-pair"><label>Registration fee (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={e=>setEventPrice(e.target.value)}/></label><label>Expected participants<input required min="1" type="number" value={participants} onChange={e=>setParticipants(e.target.value)}/></label></div>
+              <div className="form-pair"><label>Registration fee per participant (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={e=>setEventPrice(e.target.value)}/></label><label>Expected participants<input required min="1" type="number" value={participants} onChange={e=>setParticipants(e.target.value)}/></label></div>
+              <div className="expected-collection"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money((Number(eventPrice)||0)*(Number(participants)||0))}</strong><small>{participants || 0} participants × {money(eventPrice)}</small></div>
               <div className="form-hint"><CircleAlert size={16}/> Set the exact amount each participant is expected to pay.</div>
               <button className="ink-button form-submit" type="submit" disabled={busy==="create"}>{busy==="create" ? <LoaderCircle className="spin" size={17}/> : <Plus size={17}/>} Create event <ArrowRight size={17}/></button>
             </form>
           </section> : <section className="verification-layout">
-            <div className="workflow-heading"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> All events</button><span className="eyebrow">EVENT EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h2>{selectedEvent.event_name}</h2><p>{money(selectedEvent.event_price)} per participant · {selectedEvent.expected_participant_count ?? "—"} expected</p></div>
-            <div className="workflow-steps"><span className="current">01 <b>SCREENSHOTS</b></span><i/><span className={selectedEvent.total_bank_transactions || statementSummary ? "current" : ""}>02 <b>BANK STATEMENT</b></span><i/><span className={results.length ? "current" : ""}>03 <b>RECONCILIATION</b></span></div>
+            <div className="workflow-heading"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> All events</button><span className="eyebrow">EVENT EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h2>{selectedEvent.event_name}</h2><p>{money(selectedEvent.event_price)} per participant · {selectedEvent.expected_participant_count ?? "—"} expected</p><div className="expected-total"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong><small>{selectedEvent.expected_participant_count ?? 0} expected payments</small></div></div>
+            <div className="workflow-steps"><span className="current">01 <b>PAYMENT PROOFS</b></span><i/><span className={selectedEvent.total_bank_transactions || statementSummary ? "current" : ""}>02 <b>BANK RECORD</b></span><i/><span className={results.length ? "current" : ""}>03 <b>RESULT</b></span></div>
+            <div className="verification-summary">
+              <div><span>EXPECTED COLLECTION</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong></div>
+              <div><span>PER PARTICIPANT</span><strong>{money(selectedEvent.event_price)}</strong></div>
+              <div><span>EXPECTED PARTICIPANTS</span><strong>{selectedEvent.expected_participant_count ?? "—"}</strong></div>
+            </div>
             <div className="upload-columns">
-              <section className="upload-section"><div className="upload-title"><span>01</span><div><span className="eyebrow">PARTICIPANT EVIDENCE</span><h3>Payment screenshots</h3><p>Upload multiple PNG, JPG or WebP files · 10 MB max each.</p></div></div>
-                <label className="drop-zone"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={e=>setScreenshots(Array.from(e.target.files||[]))}/><div className="drop-icon"><FileImage size={23}/></div><strong>{screenshots.length ? screenshots.length+" file(s) selected" : "Drop payment screenshots here"}</strong><span>or <u>browse your device</u></span><small>PNG · JPG · WEBP</small></label>
+              <section className="upload-section"><div className="upload-title"><span>01</span><div><span className="eyebrow">PARTICIPANT EVIDENCE</span><h3>Payment screenshots</h3><p>Select all payment proofs together. EvidentPay will read them automatically when you start verification.</p></div></div>
+                <label className="drop-zone"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={e=>setScreenshots(Array.from(e.target.files||[]))}/><div className="drop-icon"><FileImage size={23}/></div><strong>{screenshots.length ? screenshots.length+" file(s) ready" : "Add payment screenshots"}</strong><span>or <u>browse your device</u></span><small>PNG · JPG · WEBP · MULTIPLE FILES</small></label>
                 {screenshots.length>0 && <div className="selected-files">{screenshots.map(file=><div key={file.name}><FileImage size={15}/><span>{file.name}</span><small>{(file.size/1024/1024).toFixed(1)} MB</small></div>)}</div>}
                 {uploadSummary && <div className="upload-result"><CheckCircle2 size={16}/>{uploadSummary.successful} processed · {uploadSummary.failed} failed</div>}
-                <div className="upload-actions"><span>{selectedEvent.total_claims || uploadSummary?.successful || 0} claims stored</span><button className="lime-button" disabled={!screenshots.length||busy==="screenshots"} onClick={uploadScreenshots}>{busy==="screenshots"?<LoaderCircle className="spin" size={16}/>:<Upload size={16}/>} Upload proofs</button></div>
+                <div className="upload-actions"><span>{selectedEvent.total_claims || uploadSummary?.successful || 0} claims already stored</span><span className="file-ready">{screenshots.length ? screenshots.length+" new selected" : "Ready when you are"}</span></div>
               </section>
-              <section className="upload-section"><div className="upload-title"><span>02</span><div><span className="eyebrow">RECIPIENT ACCOUNT</span><h3>Bank statement</h3><p>Import the CSV from the account that received the payments.</p></div></div>
-                <label className="statement-zone"><input type="file" accept=".csv,text/csv" onChange={e=>setStatement(e.target.files?.[0]||null)}/><FileSpreadsheet size={27}/><span><strong>{statement ? statement.name : "Choose a statement file"}</strong><small>{statement ? (statement.size/1024).toFixed(0)+" KB selected" : "CSV format · 20 MB max"}</small></span><b>Browse</b></label>
+              <section className="upload-section"><div className="upload-title"><span>02</span><div><span className="eyebrow">RECIPIENT ACCOUNT</span><h3>Bank statement</h3><p>Use the account that received the payments. CSV and text-based PDF statements are supported.</p></div></div>
+                <label className="statement-zone"><input type="file" accept=".csv,.pdf,text/csv,application/pdf" onChange={e=>setStatement(e.target.files?.[0]||null)}/><FileSpreadsheet size={27}/><span><strong>{statement ? statement.name : "Choose a bank statement"}</strong><small>{statement ? (statement.size/1024).toFixed(0)+" KB selected" : "CSV or PDF · up to 20 MB"}</small></span><b>Browse</b></label>
                 {statementSummary && <div className="upload-result"><CheckCircle2 size={16}/>{statementSummary.total_transactions} transactions · {statementSummary.credit_transactions} credits imported</div>}
-                <div className="upload-actions"><span>{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0} rows imported</span><button className="outline-button" disabled={!statement||busy==="statement"} onClick={uploadStatement}>{busy==="statement"?<LoaderCircle className="spin" size={16}/>:<Upload size={16}/>} Import CSV</button></div>
+                <div className="upload-actions"><span>{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0} rows already imported</span><span className="file-ready">{statement ? "Statement selected" : "Optional only in screenshot review"}</span></div>
               </section>
             </div>
-            <div className="reconcile-band"><div><span className="eyebrow">THE FINAL CROSS-CHECK</span><h3>Ready to compare the records?</h3><p>Every extracted claim will be checked against incoming bank credits.</p></div><button className="ink-button" onClick={reconcile} disabled={busy==="reconcile"||!(selectedEvent.total_claims||uploadSummary?.successful)||!(selectedEvent.total_bank_transactions||statementSummary?.total_transactions)}>{busy==="reconcile"?<LoaderCircle className="spin" size={16}/>:<Zap size={16}/>} Run reconciliation <ArrowRight size={17}/></button></div>
-            <div className="trust-line"><ShieldCheck size={17}/> A screenshot is a claim, not confirmation. A matching incoming bank credit is the confirmation signal.</div>
+            <div className="no-statement-choice">
+              <div><span className="eyebrow">DON'T HAVE THE RECIPIENT'S BANK STATEMENT?</span><strong>Run a screenshot-only review instead.</strong><p>We can inspect extracted details and repeated claims, but payments will remain unverified without bank credits.</p></div>
+              <button className={reviewMode==="screenshots"?"choice-active":"choice-button"} onClick={()=>{setReviewMode("screenshots");setStatement(null);}}>Use screenshot-only review</button>
+            </div>
+            <div className="verification-footer">
+              <div className="verification-mode"><span className="eyebrow">VERIFICATION MODE</span><strong>{reviewMode==="bank"?"Bank statement reconciliation":"Screenshot-only · Unverified"}</strong><small>{reviewMode==="bank"?"Screenshots will be compared with incoming credits.":"No bank credit confirmation will be claimed."}</small></div>
+              <button className="ink-button" onClick={runVerification} disabled={busy==="verification"||(!screenshots.length&&!selectedEvent.total_claims)||(reviewMode==="bank"&&!statement&&!selectedEvent.total_bank_transactions)}>{busy==="verification"?<><LoaderCircle className="spin" size={16}/> Processing files & checking records…</>:<><Zap size={16}/> {reviewMode==="bank"?"Verify all uploads":"Run screenshot review"} <ArrowRight size={17}/></>}</button>
+            </div>
+            <div className="trust-line"><ShieldCheck size={17}/> A screenshot is a payment claim. Only a matching recipient-side bank credit confirms receipt.</div>
             {results.length>0 && <button className="plain-link results-link" onClick={()=>loadEventData(selectedEvent)}>View latest results <ArrowUpRight size={15}/></button>}
           </section>}
         </>}
