@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 from collections import Counter
+import hashlib
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -23,7 +24,7 @@ from app.database.database_operations import (
 )
 
 from app.services.ocr_service import extract_payment
-from app.services.statement_service import load_statement_csv
+from app.services.statement_service import load_statement_csv, load_statement_pdf
 from app.services.matching_service import match_payments
 
 
@@ -238,10 +239,10 @@ def upload_bank_statement(
 
     extension = Path(file.filename or "").suffix.lower()
 
-    if extension != ".csv":
+    if extension not in {".csv", ".pdf"}:
         raise HTTPException(
             status_code=400,
-            detail="Only CSV bank statements are supported currently"
+            detail="Upload a CSV or PDF bank statement"
         )
 
     # Prevent duplicate imports for the same event.
@@ -259,7 +260,7 @@ def upload_bank_statement(
     database_saved = False
 
     try:
-        unique_filename = f"{uuid4().hex}.csv"
+        unique_filename = f"{uuid4().hex}{extension}"
         saved_path = STATEMENT_DIR / unique_filename
 
         with open(saved_path, "wb") as destination:
@@ -278,7 +279,11 @@ def upload_bank_statement(
             )
 
         # Parse CSV using the existing statement service.
-        transactions = load_statement_csv(str(saved_path))
+        transactions = (
+            load_statement_pdf(str(saved_path))
+            if extension == ".pdf"
+            else load_statement_csv(str(saved_path))
+        )
 
         if not transactions:
             raise HTTPException(
@@ -348,6 +353,72 @@ def upload_bank_statement(
             saved_path.unlink()
 
         file.file.close()
+
+
+# --------------------------------------------------
+# 4B. SCREENSHOT-ONLY REVIEW (NO BANK STATEMENT)
+# --------------------------------------------------
+
+@router.post("/{event_id}/analyze-without-statement")
+def analyze_without_statement(event_id: int):
+    """Create an explicitly unverified review when no recipient statement is available."""
+    event = get_event(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    claims = get_payments_for_matching(event_id)
+    if not claims:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload payment screenshots before starting screenshot-only review"
+        )
+
+    if get_reconciliation_results(event_id):
+        raise HTTPException(
+            status_code=409,
+            detail="This event already has review results"
+        )
+
+    duplicate_utr_counts = Counter(
+        str(claim.get("utr")).strip()
+        for claim in claims
+        if claim.get("utr")
+    )
+    results = []
+    for claim in claims:
+        utr = str(claim.get("utr") or "").strip()
+        reasons = [
+            "No recipient-side bank statement was supplied. This payment is NOT verified."
+        ]
+        if not claim.get("amount"):
+            reasons.append("Amount could not be reliably extracted from the screenshot.")
+        if not utr:
+            reasons.append("UTR could not be extracted from the screenshot.")
+        if utr and duplicate_utr_counts[utr] > 1:
+            reasons.append("The same UTR appears in multiple uploaded claims.")
+
+        results.append({
+            "payment_id": claim["id"],
+            "bank_transaction": None,
+            "status": "UNVERIFIED_NO_BANK_STATEMENT",
+            "reasons": reasons,
+            "checks": {
+                "amount_extracted": bool(claim.get("amount")),
+                "utr_extracted": bool(utr),
+                "duplicate_utr_in_uploads": bool(utr and duplicate_utr_counts[utr] > 1),
+                "bank_credit_confirmed": False
+            }
+        })
+
+    saved = save_reconciliation_results(event_id=event_id, results=results)
+    return {
+        "event_id": event_id,
+        "total_claims": len(claims),
+        "total_reconciled": len(saved),
+        "verified": 0,
+        "unverified": len(saved),
+        "message": "Screenshot-only review completed. No payment has been bank-verified."
+    }
 
 
 # --------------------------------------------------
