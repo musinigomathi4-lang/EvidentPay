@@ -36,7 +36,7 @@ function shortDate(value) {
 function statusTone(status) {
   const value = String(status || "").toLowerCase();
   if (value === "matched" || value === "verified") return "verified";
-  if (value.includes("duplicate") || value.includes("review") || value.includes("mismatch")) return "review";
+  if (value.includes("duplicate") || value.includes("review") || value.includes("mismatch") || value.includes("unverified")) return "review";
   if (value.includes("outside") || value.includes("not_found") || value === "unmatched") return "pending";
   return "plain";
 }
