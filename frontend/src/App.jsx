@@ -38,9 +38,9 @@ function shortDate(value) {
 
 function statusTone(status) {
   const value = String(status || "").toLowerCase();
-  if (value.includes("match") || value.includes("verified")) return "good";
+  if (value === "matched" || value === "verified") return "good";
   if (value.includes("duplicate") || value.includes("review") || value.includes("mismatch")) return "warning";
-  if (value.includes("outside") || value.includes("not_found") || value.includes("unmatched")) return "muted";
+  if (value.includes("outside") || value.includes("not_found") || value === "unmatched") return "muted";
   return "neutral";
 }
 
