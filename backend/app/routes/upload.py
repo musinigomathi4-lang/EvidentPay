@@ -338,6 +338,12 @@ def upload_bank_statement(
     except HTTPException:
         raise
 
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not read the bank statement: {str(error)}"
+        )
+
     except Exception as error:
         raise HTTPException(
             status_code=500,
