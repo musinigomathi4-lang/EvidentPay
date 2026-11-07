@@ -245,200 +245,149 @@ function App() {
   }
 
   const navItems = [
-    { id: "overview", label: "Command centre", icon: LayoutDashboard },
-    { id: "events", label: "Events & records", icon: History },
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "events", label: "Events", icon: History },
     { id: "new", label: "New event", icon: Plus }
   ];
 
+  const matchedCount = results.filter((item) => String(item.status).toLowerCase() === "matched").length;
+  const attentionCount = results.filter((item) => statusTone(item.status) === "warning").length;
+
   return (
-    <div className="app-shell">
-      <aside className={"sidebar " + (sidebarOpen ? "sidebar-open" : "")}>
-        <div className="brand-lockup">
-          <div className="brand-mark"><ShieldCheck size={23} strokeWidth={2.3} /></div>
-          <div><strong>evident<span>pay</span></strong><small>PAYMENT INTELLIGENCE</small></div>
-          <button className="mobile-close" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
-        </div>
-
-        <div className="workspace-switcher">
-          <div className="workspace-avatar">EP</div>
-          <div><strong>Organizer workspace</strong><small>Personal workspace</small></div>
-          <ChevronDown size={16} />
-        </div>
-
-        <div className="nav-caption">WORKSPACE</div>
-        <nav className="main-nav">
+    <div className="ep-app">
+      <aside className={"ep-rail " + (sidebarOpen ? "is-open" : "")}>
+        <button className="ep-brand" onClick={() => navigate("overview")} aria-label="EvidentPay home">
+          <span className="ep-brand-mark"><ShieldCheck size={22} /></span>
+          <span className="ep-brand-word">ep<span>.</span></span>
+        </button>
+        <div className="ep-rail-label">WORKSPACE</div>
+        <nav className="ep-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
-            return <button key={item.id} className={"nav-item " + (page === item.id || (item.id === "events" && page === "event") ? "active" : "")} onClick={() => item.id === "new" ? startNewEvent() : navigate(item.id)}>
-              <Icon size={18} /><span>{item.label}</span>{item.id === "events" && events.length > 0 && <small>{events.length}</small>}
+            const active = page === item.id || (item.id === "events" && page === "event");
+            return <button key={item.id} className={active ? "active" : ""} onClick={() => item.id === "new" ? startNewEvent() : navigate(item.id)} title={item.label}>
+              <Icon size={19} /><span>{item.label}</span>
+              {item.id === "events" && events.length > 0 && <i>{events.length}</i>}
             </button>;
           })}
         </nav>
-
-        <div className="sidebar-spacer" />
-        <div className="sidebar-tip">
-          <div className="tip-icon"><Sparkles size={17} /></div>
-          <strong>Clarity over claims.</strong>
-          <p>Only a matching bank credit confirms a payment. Screenshots are supporting evidence.</p>
-        </div>
-        <div className="sidebar-bottom">
-          <div className="connection-indicator"><span /> API connection · localhost</div>
-          <div className="sidebar-foot"><ShieldCheck size={15} /> EvidentPay <span>v1.0</span></div>
+        <div className="ep-rail-bottom">
+          <div className="ep-live-dot" title="API workspace" />
+          <span>LOCAL</span>
         </div>
       </aside>
 
-      {sidebarOpen && <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
-
-      <main className="main-area">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
-            <div className="breadcrumb"><span>Workspace</span><ChevronRight size={14} /><strong>{page === "overview" ? "Command centre" : page === "events" ? "Events & records" : page === "new" ? "New event" : selectedEvent?.event_name || "Event details"}</strong></div>
+      {sidebarOpen && <button className="ep-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close menu" />}
+      <main className="ep-main">
+        <header className="ep-topbar">
+          <div className="ep-top-left">
+            <button className="ep-mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
+            <div className="ep-crumb">EVIDENTPAY <span>/</span> {page === "overview" ? "OVERVIEW" : page === "events" ? "EVENT REGISTER" : page === "new" ? "NEW WORKFLOW" : "EVENT DETAIL"}</div>
           </div>
-          <div className="topbar-actions">
-            <div className="system-status"><span /> System operational</div>
-            <button className="icon-button notification-trigger" onClick={() => setShowNotifications(!showNotifications)}><Bell size={18} /><i /></button>
-            {showNotifications && <div className="notification-popover"><strong>Activity inbox</strong><p>{reviewCount ? reviewCount + " item(s) may need review in the open event." : "You're all caught up. New activity will appear here."}</p></div>}
-            <div className="user-chip"><div className="user-avatar">A</div><span>Organizer</span><ChevronDown size={15} /></div>
+          <div className="ep-top-right">
+            <span className="ep-api-state"><i /> API CONNECTED</span>
+            <div className="ep-avatar">O</div>
+            <span className="ep-user-label">Organizer</span>
           </div>
         </header>
 
-        <div className="page-wrap">
-          {error && <div className="alert alert-error"><CircleAlert size={17} /><span>{error}</span><button onClick={() => setError("")}><X size={16} /></button></div>}
-          {notice && <div className="alert alert-success"><CheckCircle2 size={17} /><span>{notice}</span><button onClick={() => setNotice("")}><X size={16} /></button></div>}
+        <div className="ep-content">
+          {(error || notice) && <div className={"ep-message " + (error ? "error" : "success")}>
+            {error ? <CircleAlert size={17} /> : <CheckCircle2 size={17} />}
+            <span>{error || notice}</span>
+            <button onClick={() => { setError(""); setNotice(""); }}><X size={16} /></button>
+          </div>}
 
           {page === "overview" && <>
-            <section className="welcome-row">
-              <div>
-                <div className="eyebrow"><span className="eyebrow-dot" /> LIVE OVERVIEW</div>
-                <h1>Good morning. <span>Here's your pulse.</span></h1>
-                <p className="page-subtitle">One place to track event collections, verify payments and catch exceptions.</p>
-              </div>
-              <button className="button-primary" onClick={startNewEvent}><Plus size={17} /> Create event <ArrowUpRight size={16} /></button>
+            <section className="ep-page-heading">
+              <div><div className="ep-kicker">YOUR PAYMENT OPERATIONS</div><h1>Overview<span className="ep-period">.</span></h1><p>One workspace for event collections, payment evidence and reconciliation.</p></div>
+              <button className="ep-button primary" onClick={startNewEvent}><Plus size={17} /> Create event</button>
             </section>
 
-            <section className="metric-grid">
-              <div className="metric-card metric-purple">
-                <div className="metric-top"><span>Total events</span><div className="metric-icon"><Wallet size={19} /></div></div>
-                <div className="metric-value">{loading ? "—" : events.length}</div>
-                <div className="metric-foot"><span className="metric-note">Across your workspace</span><span className="metric-symbol"><Activity size={16} /></span></div>
+            <section className="ep-hero">
+              <div className="ep-hero-copy">
+                <div className="ep-hero-label"><span /> EVIDENCE-LED VERIFICATION</div>
+                <h2>Know what arrived.<br /><em>Not just what was claimed.</em></h2>
+                <p>Compare submitted payment screenshots with incoming credits from the recipient-side bank statement.</p>
+                <button className="ep-hero-button" onClick={startNewEvent}>Start a verification <ArrowUpRight size={16} /></button>
               </div>
-              <div className="metric-card">
-                <div className="metric-top"><span>Payment claims</span><div className="metric-icon"><FileImage size={19} /></div></div>
-                <div className="metric-value">{loading ? "—" : totalClaims}</div>
-                <div className="metric-foot"><span className="metric-note">Screenshots processed</span><span className="metric-symbol"><ArrowUpRight size={16} /></span></div>
+              <div className="ep-hero-graphic" aria-hidden="true">
+                <div className="ep-orbit orbit-one" /><div className="ep-orbit orbit-two" />
+                <div className="ep-float-card"><div className="ep-float-top"><span>PAYMENT RECORD</span><CheckCircle2 size={17} /></div><strong>₹500.00</strong><div className="ep-float-line"><i /><i /><i /></div><small>BANK CREDIT MATCHED</small></div>
+                <div className="ep-float-stamp"><ShieldCheck size={23} /><span>VERIFIED<br/>BY EVIDENCE</span></div>
               </div>
-              <div className="metric-card">
-                <div className="metric-top"><span>Reconciled records</span><div className="metric-icon"><BadgeCheck size={19} /></div></div>
-                <div className="metric-value">{loading ? "—" : totalResults}</div>
-                <div className="metric-foot"><span className="metric-note">Compared with bank credits</span><span className="metric-symbol"><Check size={16} /></span></div>
-              </div>
-              <div className="metric-card metric-amber">
-                <div className="metric-top"><span>Events processed</span><div className="metric-icon"><Zap size={19} /></div></div>
-                <div className="metric-value">{loading ? "—" : processedEvents}<small> / {events.length}</small></div>
-                <div className="metric-foot"><span className="metric-note">Reconciliation completed</span><span className="metric-symbol"><Clock3 size={16} /></span></div>
-              </div>
+              <div className="ep-hero-index">01 <span>/</span> 03</div>
             </section>
 
-            <section className="command-grid">
-              <div className="surface events-surface">
-                <div className="surface-heading">
-                  <div><div className="eyebrow">YOUR WORKSPACE</div><h2>Recent events</h2><p>Pick up where you left off.</p></div>
-                  <button className="button-quiet" onClick={() => navigate("events")}>All events <ArrowRight size={15} /></button>
-                </div>
-                {loading ? <div className="loading-state"><LoaderCircle className="spin" size={22} /> Loading event data…</div> : events.length === 0 ? <div className="empty-state"><div className="empty-illustration"><CalendarDaysIcon /></div><h3>Your first event starts here</h3><p>Create an event to start collecting and reconciling payment proofs.</p><button className="button-primary" onClick={startNewEvent}><Plus size={16} /> Create your first event</button></div> : <div className="event-list">
-                  {events.slice(0, 5).map((event) => <button className="event-row" key={event.event_id} onClick={() => openEvent(event)}>
-                    <div className="event-symbol"><Wallet size={18} /></div>
-                    <div className="event-main"><strong>{event.event_name}</strong><span>Event #{event.event_id} · {shortDate(event.created_at)}</span></div>
-                    <div className="event-count"><strong>{event.total_claims || 0}</strong><span>claims</span></div>
-                    <div className="event-count"><strong>{event.total_results || 0}</strong><span>results</span></div>
-                    <ChevronRight className="event-chevron" size={18} />
-                  </button>)}
-                </div>}
-              </div>
-
-              <div className="right-rail">
-                <div className="surface quick-surface">
-                  <div className="surface-heading compact"><div><div className="eyebrow">QUICK ACTIONS</div><h2>Move things forward</h2></div><div className="sparkle-badge"><Zap size={17} /></div></div>
-                  <button className="quick-action" onClick={startNewEvent}><div className="quick-icon lavender"><Plus size={18} /></div><div><strong>Create an event</strong><span>Set price and expected headcount</span></div><ArrowUpRight size={16} /></button>
-                  <button className="quick-action" onClick={() => navigate("events")}><div className="quick-icon blue"><FileCheck2 size={18} /></div><div><strong>Review payment records</strong><span>Open an event and inspect results</span></div><ArrowUpRight size={16} /></button>
-                </div>
-                <div className="insight-card">
-                  <div className="insight-orb"><Fingerprint size={22} /></div>
-                  <div className="eyebrow">VERIFICATION PRINCIPLE</div>
-                  <h3>Evidence first.<br />Assumptions never.</h3>
-                  <p>A screenshot can make a claim. A matching credit in the recipient's bank statement verifies it.</p>
-                  <div className="insight-rule"><span /> BANK-LED RECONCILIATION</div>
-                </div>
-              </div>
+            <section className="ep-stat-grid">
+              <div className="ep-stat"><div className="ep-stat-head">EVENTS <CalendarDaysIcon /></div><strong>{loading ? "—" : events.length}</strong><small>Created in workspace</small></div>
+              <div className="ep-stat"><div className="ep-stat-head">SCREENSHOT CLAIMS <FileImage size={16} /></div><strong>{loading ? "—" : totalClaims}</strong><small>Payment proofs received</small></div>
+              <div className="ep-stat"><div className="ep-stat-head">RECONCILIATION RECORDS <Activity size={16} /></div><strong>{loading ? "—" : totalResults}</strong><small>Compared with bank data</small></div>
+              <div className="ep-stat"><div className="ep-stat-head">PROCESSED EVENTS <BadgeCheck size={16} /></div><strong>{loading ? "—" : processedEvents}<small className="ep-stat-total"> / {events.length}</small></strong><small>Reconciliation completed</small></div>
             </section>
+
+            <section className="ep-section-head"><div><div className="ep-kicker">RECENT ACTIVITY</div><h2>Events in your workspace</h2></div><button className="ep-text-button" onClick={() => navigate("events")}>View event register <ArrowRight size={15} /></button></section>
+            <section className="ep-event-panel">
+              {loading ? <div className="ep-empty"><LoaderCircle className="spin" size={22} /> Loading your events…</div> : events.length === 0 ? <div className="ep-empty"><div className="ep-empty-icon"><Wallet size={24} /></div><h3>Your workspace is ready.</h3><p>Create your first event to start collecting and verifying payments.</p><button className="ep-button primary" onClick={startNewEvent}><Plus size={16} /> Create first event</button></div> :
+                <div className="ep-recent-list">{events.slice(0,5).map((event,index) => <button className="ep-recent-row" key={event.event_id} onClick={() => openEvent(event)}>
+                  <span className="ep-row-index">{String(index+1).padStart(2,"0")}</span><span className="ep-event-monogram">{(event.event_name || "E").slice(0,1).toUpperCase()}</span>
+                  <span className="ep-event-title"><strong>{event.event_name}</strong><small>EP-{String(event.event_id).padStart(4,"0")} · {shortDate(event.created_at)}</small></span>
+                  <span className="ep-row-metric"><strong>{event.total_claims || 0}</strong><small>CLAIMS</small></span><span className="ep-row-metric"><strong>{event.total_results || 0}</strong><small>RESULTS</small></span><span className="ep-row-arrow"><ArrowUpRight size={18}/></span>
+                </button>)}</div>}
+            </section>
+            <div className="ep-footnote"><ShieldCheck size={15}/> A matching incoming bank credit is the confirmation signal. Screenshot analysis is supplementary only.</div>
           </>}
 
           {page === "events" && <>
-            <section className="welcome-row compact-welcome">
-              <div><div className="eyebrow">WORKSPACE RECORDS</div><h1>Events & <span>records.</span></h1><p className="page-subtitle">Every event, its uploaded claims and reconciliation progress.</p></div>
-              <button className="button-primary" onClick={startNewEvent}><Plus size={17} /> Create event</button>
+            <section className="ep-page-heading"><div><div className="ep-kicker">WORKSPACE INDEX</div><h1>Event register<span className="ep-period">.</span></h1><p>Browse every event and its payment processing progress.</p></div><button className="ep-button primary" onClick={startNewEvent}><Plus size={17}/> Create event</button></section>
+            <section className="ep-table-panel">
+              <div className="ep-table-toolbar"><div><strong>{events.length} <span>EVENTS</span></strong><small>All registered events</small></div><label className="ep-search"><Search size={17}/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Find an event…"/></label></div>
+              {loading ? <div className="ep-empty"><LoaderCircle className="spin" size={22}/> Loading events…</div> : filteredEvents.length === 0 ? <div className="ep-empty"><h3>No matching events</h3><p>Try a different search or create a new event.</p></div> :
+                <div className="ep-table-scroll"><table className="ep-table"><thead><tr><th>EVENT</th><th>REGISTRATION</th><th>EXPECTED</th><th>CLAIMS</th><th>BANK ROWS</th><th>RESULTS</th><th>CREATED</th><th></th></tr></thead><tbody>{filteredEvents.map(event=><tr key={event.event_id} onClick={()=>openEvent(event)}><td><div className="ep-table-event"><span>{(event.event_name||"E").slice(0,1).toUpperCase()}</span><div><strong>{event.event_name}</strong><small>EP-{String(event.event_id).padStart(4,"0")}</small></div></div></td><td>{money(event.event_price)}</td><td>{event.expected_participant_count ?? "—"}</td><td>{event.total_claims || 0}</td><td>{event.total_bank_transactions || 0}</td><td><b>{event.total_results || 0}</b></td><td>{shortDate(event.created_at)}</td><td><ArrowUpRight size={16}/></td></tr>)}</tbody></table></div>}
             </section>
-            <div className="surface records-surface">
-              <div className="records-toolbar"><div><h2>All events <span className="count-bubble">{events.length}</span></h2><p>Choose an event to view its payment workflow.</p></div><div className="search-field"><Search size={17} /><input placeholder="Search events…" value={search} onChange={(e) => setSearch(e.target.value)} /></div></div>
-              {loading ? <div className="loading-state"><LoaderCircle className="spin" size={22} /> Loading events…</div> : filteredEvents.length === 0 ? <div className="empty-state"><h3>No events found</h3><p>Try another search or create a new event.</p></div> : <div className="table-scroll"><table className="data-table"><thead><tr><th>EVENT</th><th>PRICE</th><th>EXPECTED</th><th>SCREENSHOTS</th><th>STATEMENT ROWS</th><th>RESULTS</th><th>CREATED</th><th /></tr></thead><tbody>{filteredEvents.map((event) => <tr key={event.event_id} onClick={() => openEvent(event)}><td><div className="table-event"><div className="event-symbol small"><Wallet size={16} /></div><div><strong>{event.event_name}</strong><span>EP-{String(event.event_id).padStart(4, "0")}</span></div></div></td><td>{money(event.event_price)}</td><td>{event.expected_participant_count ?? "—"}</td><td>{event.total_claims || 0}</td><td>{event.total_bank_transactions || 0}</td><td><strong>{event.total_results || 0}</strong></td><td>{shortDate(event.created_at)}</td><td><ChevronRight size={17} /></td></tr>)}</tbody></table></div>}
-            </div>
           </>}
 
           {page === "new" && <>
-            <section className="welcome-row compact-welcome">
-              <div><div className="eyebrow">NEW WORKFLOW</div><h1>Set up your <span>event.</span></h1><p className="page-subtitle">Create the event, add payment proofs and import recipient-side bank data.</p></div>
-              <div className="step-indicator"><span className={selectedEvent ? "complete" : "current"}>01</span><i /><span className={selectedEvent ? "current" : ""}>02</span><i /><span>03</span></div>
-            </section>
-            {!selectedEvent ? <div className="setup-layout">
-              <form className="surface setup-form" onSubmit={createEvent}>
-                <div className="form-heading"><div className="form-icon"><CalendarDaysIcon /></div><div><h2>Event details</h2><p>These details are used to organize payment claims.</p></div></div>
-                <label>Event name<input required maxLength="150" placeholder="e.g. TechFest 2026" value={eventName} onChange={(e) => setEventName(e.target.value)} /></label>
-                <div className="form-two"><label>Registration fee (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={(e) => setEventPrice(e.target.value)} /></label><label>Expected participants<input required min="1" type="number" value={participants} onChange={(e) => setParticipants(e.target.value)} /></label></div>
-                <div className="form-note"><CircleAlert size={16} /><span>Use the amount each participant is expected to pay. You can upload screenshots after creating the event.</span></div>
-                <button className="button-primary wide" type="submit" disabled={busy === "create"}>{busy === "create" ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />} Create event and continue <ArrowRight size={16} /></button>
+            <section className="ep-page-heading"><div><div className="ep-kicker">PAYMENT WORKFLOW / {selectedEvent ? "02" : "01"}</div><h1>{selectedEvent ? "Collect & reconcile" : "Create an event"}<span className="ep-period">.</span></h1><p>{selectedEvent ? "Add screenshots and the recipient-side bank statement, then reconcile." : "Set the event details before collecting payment evidence."}</p></div>{selectedEvent && <div className="ep-event-tag"><span className="ep-live-dot"/> ACTIVE · EP-{String(selectedEvent.event_id).padStart(4,"0")}</div>}</section>
+            {!selectedEvent ? <div className="ep-create-layout">
+              <form className="ep-form-panel" onSubmit={createEvent}>
+                <div className="ep-form-title"><span>01</span><div><h2>Event configuration</h2><p>Define the collection before importing any payment claims.</p></div></div>
+                <label className="ep-field">EVENT NAME<input required maxLength="150" placeholder="e.g. TechFest 2026" value={eventName} onChange={e=>setEventName(e.target.value)}/></label>
+                <div className="ep-field-grid"><label className="ep-field">REGISTRATION FEE (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={e=>setEventPrice(e.target.value)}/></label><label className="ep-field">EXPECTED PARTICIPANTS<input required min="1" type="number" value={participants} onChange={e=>setParticipants(e.target.value)}/></label></div>
+                <div className="ep-form-note"><CircleAlert size={17}/> Use the exact amount each participant is expected to pay.</div>
+                <button className="ep-button primary ep-submit" type="submit" disabled={busy==="create"}>{busy==="create" ? <LoaderCircle className="spin" size={17}/> : <Plus size={17}/>} Create event <ArrowRight size={16}/></button>
               </form>
-              <div className="setup-aside"><div className="aside-art"><div className="art-card art-back"><span>PAYMENT RECEIVED</span><strong>₹500.00</strong><small>UPI transaction</small></div><div className="art-card art-front"><div className="art-check"><Check size={18} /></div><span>VERIFICATION READY</span><strong>Evidence matched</strong><small>Bank statement comparison</small></div><div className="art-orbit" /></div><h3>A cleaner way to close the books.</h3><p>Keep screenshots, bank credits and review outcomes tied to one event.</p></div>
-            </div> : <div className="workflow-layout">
-              <div className="workflow-main">
-                <div className="surface workflow-card">
-                  <div className="workflow-heading"><div className="step-number">01</div><div><div className="eyebrow">PAYMENT PROOFS</div><h2>Upload screenshots</h2><p>Choose multiple PNG, JPG or WebP files. Maximum 10 MB each.</p></div><div className="workflow-state done"><Check size={15} /> {selectedEvent.total_claims || uploadSummary?.successful || 0} saved</div></div>
-                  <label className="drop-zone"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={(e) => setScreenshots(Array.from(e.target.files || []))} /><div className="drop-icon"><CloudUpload size={25} /></div><strong>Drop screenshots here or <span>browse files</span></strong><small>{screenshots.length ? screenshots.length + " file(s) selected" : "Multiple files · PNG, JPG, WEBP"}</small></label>
-                  {screenshots.length > 0 && <div className="selected-files">{screenshots.map((file) => <div key={file.name}><FileImage size={16} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></div>)}</div>}
-                  {uploadSummary && <div className="inline-result"><CheckCircle2 size={16} /> {uploadSummary.successful} successful · {uploadSummary.failed} failed</div>}
-                  <div className="workflow-footer"><span>OCR extracts the payment details automatically.</span><button className="button-secondary" disabled={!screenshots.length || busy === "screenshots"} onClick={uploadScreenshots}>{busy === "screenshots" ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />} Upload screenshots</button></div>
+              <aside className="ep-create-aside"><div className="ep-kicker">THE PROCESS</div><h2>From payment claim<br/>to confirmed credit.</h2><div className="ep-process-step"><span>01</span><div><strong>Collect proof</strong><small>Read payment details from screenshots.</small></div></div><div className="ep-process-step"><span>02</span><div><strong>Import bank data</strong><small>Load incoming credits from a CSV statement.</small></div></div><div className="ep-process-step"><span>03</span><div><strong>Reconcile</strong><small>Match claims and flag exceptions for review.</small></div></div></aside>
+            </div> : <div className="ep-workspace">
+              <section className="ep-work-main">
+                <div className="ep-upload-panel"><div className="ep-panel-heading"><span className="ep-step">01</span><div><div className="ep-kicker">INPUT / SCREENSHOTS</div><h2>Payment proofs</h2><p>Upload multiple PNG, JPG or WebP screenshots · 10 MB max each.</p></div><span className="ep-step-state">{selectedEvent.total_claims || uploadSummary?.successful || 0} SAVED</span></div>
+                  <label className="ep-drop"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={e=>setScreenshots(Array.from(e.target.files||[]))}/><CloudUpload size={25}/><strong>{screenshots.length ? screenshots.length+" file(s) selected" : "Choose screenshots to upload"}</strong><small>Drag files here or browse from your device</small></label>
+                  {screenshots.length>0 && <div className="ep-file-list">{screenshots.map(file=><div key={file.name}><FileImage size={15}/><span>{file.name}</span><small>{(file.size/1024/1024).toFixed(1)} MB</small></div>)}</div>}
+                  {uploadSummary && <div className="ep-inline-note"><CheckCircle2 size={16}/>{uploadSummary.successful} successful · {uploadSummary.failed} failed</div>}
+                  <div className="ep-panel-footer"><span>OCR extracts amount, UTR and sender details.</span><button className="ep-button secondary" disabled={!screenshots.length||busy==="screenshots"} onClick={uploadScreenshots}>{busy==="screenshots"?<LoaderCircle className="spin" size={16}/>:<Upload size={16}/>} Upload files</button></div>
                 </div>
-                <div className="surface workflow-card">
-                  <div className="workflow-heading"><div className="step-number">02</div><div><div className="eyebrow">RECIPIENT-SIDE EVIDENCE</div><h2>Import bank statement</h2><p>Upload the CSV exported from the account that received payments.</p></div><div className="workflow-state"><Banknote size={15} /> CSV required</div></div>
-                  <label className="statement-picker"><input type="file" accept=".csv,text/csv" onChange={(e) => setStatement(e.target.files?.[0] || null)} /><div className="statement-icon"><FileSpreadsheet size={23} /></div><div><strong>{statement ? statement.name : "Choose bank statement CSV"}</strong><small>{statement ? (statement.size / 1024).toFixed(0) + " KB selected" : "CSV format · Up to 20 MB"}</small></div><span className="button-outline">Browse</span></label>
-                  {statementSummary && <div className="inline-result"><CheckCircle2 size={16} /> {statementSummary.total_transactions} transactions imported · {statementSummary.credit_transactions} credits</div>}
-                  <div className="workflow-footer"><span>Only incoming credits can confirm a payment.</span><button className="button-secondary" disabled={!statement || busy === "statement"} onClick={uploadStatement}>{busy === "statement" ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />} Import statement</button></div>
+                <div className="ep-upload-panel"><div className="ep-panel-heading"><span className="ep-step">02</span><div><div className="ep-kicker">INPUT / BANK STATEMENT</div><h2>Recipient-side statement</h2><p>Import the CSV from the account that received participant payments.</p></div><span className="ep-step-state">{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0} ROWS</span></div>
+                  <label className="ep-statement-pick"><input type="file" accept=".csv,text/csv" onChange={e=>setStatement(e.target.files?.[0]||null)}/><FileSpreadsheet size={23}/><span><strong>{statement ? statement.name : "Select bank statement CSV"}</strong><small>{statement ? (statement.size/1024).toFixed(0)+" KB selected" : "CSV file · 20 MB max"}</small></span><b>Browse</b></label>
+                  {statementSummary && <div className="ep-inline-note"><CheckCircle2 size={16}/>{statementSummary.total_transactions} transactions · {statementSummary.credit_transactions} credits imported</div>}
+                  <div className="ep-panel-footer"><span>Only incoming credits can verify a claim.</span><button className="ep-button secondary" disabled={!statement||busy==="statement"} onClick={uploadStatement}>{busy==="statement"?<LoaderCircle className="spin" size={16}/>:<Upload size={16}/>} Import CSV</button></div>
                 </div>
-                <div className="surface reconcile-strip">
-                  <div className="reconcile-icon"><Zap size={20} /></div><div><strong>Ready to reconcile?</strong><p>Compare screenshot claims against the imported bank credits.</p></div><button className="button-primary" onClick={reconcile} disabled={busy === "reconcile" || !(selectedEvent.total_claims || uploadSummary?.successful) || !(selectedEvent.total_bank_transactions || statementSummary?.total_transactions)}>{busy === "reconcile" ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />} Run reconciliation</button>
-                </div>
-              </div>
-              <aside className="workflow-side">
-                <div className="surface event-summary"><div className="eyebrow">ACTIVE EVENT</div><h3>{selectedEvent.event_name}</h3><div className="event-id">EP-{String(selectedEvent.event_id).padStart(4, "0")}</div><div className="summary-line"><span>Registration fee</span><strong>{money(selectedEvent.event_price)}</strong></div><div className="summary-line"><span>Expected participants</span><strong>{selectedEvent.expected_participant_count ?? "—"}</strong></div><div className="summary-line"><span>Screenshots uploaded</span><strong>{selectedEvent.total_claims || uploadSummary?.successful || 0}</strong></div><div className="summary-line"><span>Statement transactions</span><strong>{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0}</strong></div><button className="text-button" onClick={() => setSelectedEvent(null)}>Edit event setup <ArrowRight size={14} /></button></div>
-                <div className="trust-note"><ShieldCheck size={18} /><div><strong>Verification, not guesswork</strong><p>Without a matching bank credit, a claim remains unverified. Screenshot analysis is supplementary evidence only.</p></div></div>
-                {results.length > 0 && <button className="button-secondary wide" onClick={() => openEvent(selectedEvent)}>View reconciliation results <ArrowRight size={15} /></button>}
-              </aside>
+                <div className="ep-reconcile-panel"><div><div className="ep-kicker">FINAL STEP</div><h2>Run reconciliation</h2><p>Compare every extracted claim against available bank credits.</p></div><button className="ep-button dark" onClick={reconcile} disabled={busy==="reconcile"||!(selectedEvent.total_claims||uploadSummary?.successful)||!(selectedEvent.total_bank_transactions||statementSummary?.total_transactions)}>{busy==="reconcile"?<LoaderCircle className="spin" size={16}/>:<Zap size={16}/>} Reconcile payments <ArrowRight size={16}/></button></div>
+              </section>
+              <aside className="ep-work-aside"><div className="ep-event-card"><div className="ep-kicker">CURRENT EVENT</div><h3>{selectedEvent.event_name}</h3><span className="ep-event-code">EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><div className="ep-event-fact"><span>Registration fee</span><strong>{money(selectedEvent.event_price)}</strong></div><div className="ep-event-fact"><span>Expected headcount</span><strong>{selectedEvent.expected_participant_count ?? "—"}</strong></div><div className="ep-event-fact"><span>Screenshots</span><strong>{selectedEvent.total_claims || uploadSummary?.successful || 0}</strong></div><div className="ep-event-fact"><span>Statement rows</span><strong>{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0}</strong></div><button className="ep-text-button" onClick={()=>setSelectedEvent(null)}>Edit event details <ArrowRight size={14}/></button></div><div className="ep-trust-card"><ShieldCheck size={19}/><div><strong>Verification boundary</strong><p>A screenshot is a claim, not confirmation. Without a matching bank credit, a payment remains unverified.</p></div></div>{results.length>0&&<button className="ep-button secondary ep-full" onClick={()=>openEvent(selectedEvent)}>View results <ArrowRight size={15}/></button>}</aside>
             </div>}
           </>}
 
           {page === "event" && selectedEvent && <>
-            <section className="welcome-row compact-welcome">
-              <div><div className="eyebrow">EVENT EP-{String(selectedEvent.event_id).padStart(4, "0")}</div><h1>{selectedEvent.event_name}<span>.</span></h1><p className="page-subtitle">{money(selectedEvent.event_price)} registration · {selectedEvent.expected_participant_count ?? "—"} expected participants · Created {shortDate(selectedEvent.created_at)}</p></div>
-              <div className="heading-actions"><button className="button-secondary" onClick={() => { setPage("new"); setNotice(""); }}>Open workflow <ArrowRight size={15} /></button><button className="icon-button" onClick={() => loadEventData(selectedEvent)}><RefreshCw size={17} /></button></div>
+            <section className="ep-page-heading"><div><div className="ep-kicker">EVENT DETAIL / EP-{String(selectedEvent.event_id).padStart(4,"0")}</div><h1>{selectedEvent.event_name}<span className="ep-period">.</span></h1><p>{money(selectedEvent.event_price)} registration · {selectedEvent.expected_participant_count ?? "—"} expected · Created {shortDate(selectedEvent.created_at)}</p></div><div className="ep-heading-actions"><button className="ep-button secondary" onClick={()=>{setPage("new");setNotice("");}}>Open workflow <ArrowRight size={15}/></button><button className="ep-icon-button" onClick={()=>loadEventData(selectedEvent)}><RefreshCw size={17}/></button></div></section>
+            <section className="ep-detail-stats"><div><small>SCREENSHOT CLAIMS</small><strong>{claims.length}</strong></div><div><small>RECONCILIATION RESULTS</small><strong>{results.length}</strong></div><div><small>MATCHED</small><strong>{matchedCount}</strong></div><div><small>NEEDS ATTENTION</small><strong>{attentionCount}</strong></div></section>
+            <section className="ep-table-panel ep-results-panel"><div className="ep-section-head"><div><div className="ep-kicker">BANK-LED VERIFICATION</div><h2>Reconciliation results</h2><p>Claim details compared against recipient-side credits.</p></div><button className="ep-button secondary" onClick={()=>{setPage("new");setNotice("");}}>Continue workflow</button></div>
+              {results.length ? <div className="ep-table-scroll"><table className="ep-table"><thead><tr><th>SCREENSHOT</th><th>CLAIMED</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></tr></thead><tbody>{results.map(result=><tr key={result.result_id}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small className="ep-subline">Claim #{result.claim_id}</small></td><td>{money(result.screenshot_amount)}</td><td className="ep-mono">{result.screenshot_utr||"—"}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusPill value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"—"}</td></tr>)}</tbody></table></div> : <div className="ep-empty"><div className="ep-empty-icon"><FileCheck2 size={24}/></div><h3>No results yet</h3><p>Upload screenshots and a bank statement, then run reconciliation.</p><button className="ep-button primary" onClick={()=>{setPage("new");setNotice("");}}>Continue workflow <ArrowRight size={15}/></button></div>}
             </section>
-            <div className="event-detail-metrics"><div className="surface mini-metric"><span>Payment screenshots</span><strong>{claims.length}</strong></div><div className="surface mini-metric"><span>Reconciliation results</span><strong>{results.length}</strong></div><div className="surface mini-metric"><span>Matched</span><strong>{results.filter((item) => String(item.status).toLowerCase().includes("match")).length}</strong></div><div className="surface mini-metric"><span>Needs attention</span><strong>{results.filter((item) => statusTone(item.status) === "warning").length}</strong></div></div>
-            <div className="surface records-surface result-surface">
-              <div className="records-toolbar"><div><div className="eyebrow">RECONCILIATION OUTPUT</div><h2>Payment results</h2><p>Each screenshot claim compared with recipient-side bank data.</p></div><button className="button-secondary" onClick={() => { setPage("new"); setNotice(""); }}>Continue workflow <ArrowRight size={15} /></button></div>
-              {results.length > 0 ? <div className="table-scroll"><table className="data-table"><thead><tr><th>SCREENSHOT</th><th>CLAIMED AMOUNT</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></tr></thead><tbody>{results.map((result) => <tr key={result.result_id}><td><strong>{result.screenshot_filename || "Claim #" + result.claim_id}</strong><span className="cell-sub">Claim #{result.claim_id}</span></td><td>{money(result.screenshot_amount)}</td><td className="mono">{result.screenshot_utr || "—"}</td><td>{result.bank_transaction ? money(result.bank_transaction.credit) : "—"}</td><td><StatusPill value={result.status} /></td><td className="reason-cell">{(result.reasons || []).join(", ") || "—"}</td></tr>)}</tbody></table></div> : <div className="empty-state compact-empty"><div className="empty-illustration"><FileCheck2 size={25} /></div><h3>No reconciliation results yet</h3><p>Upload screenshots and a bank statement, then run reconciliation to see verified matches and exceptions.</p><button className="button-primary" onClick={() => { setPage("new"); setNotice(""); }}>Continue verification <ArrowRight size={15} /></button></div>}
-            </div>
-            <div className="surface claims-surface"><div className="records-toolbar"><div><h2>Extracted claims <span className="count-bubble">{claims.length}</span></h2><p>Fields read from uploaded payment screenshots.</p></div></div>{claims.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>TRANSACTION DATE</th><th>SENDER</th><th>OCR</th></tr></thead><tbody>{claims.map((claim) => <tr key={claim.claim_id}><td><strong>{claim.screenshot_filename}</strong></td><td>{money(claim.amount)}</td><td className="mono">{claim.utr || "—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name || "—"}</td><td>{claim.needs_review ? <StatusPill value="Needs review" /> : <StatusPill value="Extracted" />}</td></tr>)}</tbody></table></div> : <div className="empty-inline">No screenshots have been uploaded for this event.</div>}</div>
+            <section className="ep-table-panel ep-claims-panel"><div className="ep-section-head"><div><div className="ep-kicker">OCR OUTPUT</div><h2>Extracted claims <span className="ep-count">{claims.length}</span></h2><p>Information read from submitted screenshots.</p></div></div>
+              {claims.length ? <div className="ep-table-scroll"><table className="ep-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>TRANSACTION DATE</th><th>SENDER</th><th>EXTRACTION</th></tr></thead><tbody>{claims.map(claim=><tr key={claim.claim_id}><td>{claim.screenshot_filename}</td><td>{money(claim.amount)}</td><td className="ep-mono">{claim.utr||"—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name||"—"}</td><td><StatusPill value={claim.needs_review?"Needs review":"Extracted"}/></td></tr>)}</tbody></table></div> : <div className="ep-empty slim">No screenshots have been uploaded for this event.</div>}
+            </section>
           </>}
-          <footer className="page-footer"><span>© 2026 EvidentPay</span><span><ShieldCheck size={14} /> Built around evidence-led payment verification</span></footer>
+          <footer className="ep-footer"><span>EVIDENTPAY © 2026</span><span>PAYMENT VERIFICATION, GROUNDED IN EVIDENCE <ShieldCheck size={14}/></span></footer>
         </div>
       </main>
     </div>
