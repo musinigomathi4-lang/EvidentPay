@@ -1,0 +1,67 @@
+{
+    "pHash distance": {
+        "modified_screenshots": {
+            "min": 0.0,
+            "median": 2.0,
+            "max": 6.0
+        },
+        "benign_transformations": {
+            "min": 0.0,
+            "median": 0.0,
+            "max": 2.0
+        },
+        "ranges_overlap": true
+    },
+    "Edge difference (%)": {
+        "modified_screenshots": {
+            "min": 0.099,
+            "median": 0.274,
+            "max": 5.956
+        },
+        "benign_transformations": {
+            "min": 0.044,
+            "median": 0.113,
+            "max": 0.886
+        },
+        "ranges_overlap": true
+    },
+    "Localized difference (%)": {
+        "modified_screenshots": {
+            "min": 0.186,
+            "median": 0.721,
+            "max": 28.427
+        },
+        "benign_transformations": {
+            "min": 0.0,
+            "median": 0.0005,
+            "max": 2.952
+        },
+        "ranges_overlap": true
+    },
+    "Detected regions": {
+        "modified_screenshots": {
+            "min": 1.0,
+            "median": 15.0,
+            "max": 72.0
+        },
+        "benign_transformations": {
+            "min": 0.0,
+            "median": 0.0,
+            "max": 403.0
+        },
+        "ranges_overlap": true
+    },
+    "Modified ELA mean": {
+        "modified_screenshots": {
+            "min": 0.082,
+            "median": 0.162,
+            "max": 0.682
+        },
+        "benign_transformations": {
+            "min": 0.009,
+            "median": 0.084,
+            "max": 0.181
+        },
+        "ranges_overlap": true
+    }
+}

@@ -1,0 +1,12 @@
+pair,original,modified,original_global_flat_region_noise_std,modified_global_flat_region_noise_std,global_flat_region_noise_std_change_percent,original_global_mean_absolute_residual,modified_global_mean_absolute_residual,global_mean_absolute_residual_change_percent,original_median_tile_noise_std,modified_median_tile_noise_std,median_tile_noise_std_change_percent,original_tile_noise_iqr,modified_tile_noise_iqr,tile_noise_iqr_change_percent,original_tile_noise_coefficient_of_variation,modified_tile_noise_coefficient_of_variation,tile_noise_coefficient_of_variation_change_percent,original_average_flat_pixel_coverage,modified_average_flat_pixel_coverage,average_flat_pixel_coverage_change_percent,original_tiles_analyzed,modified_tiles_analyzed,tiles_analyzed_change_percent
+1,1.jpeg,outofstatemnt.jpg,0.9141,0.8402,-8.08,0.1373,0.1082,-21.19,0.5224,0.4095,-21.61,1.243,1.1323,-8.91,1.3245,1.6228,22.52,0.868,0.8646,-0.39,300,300,0.0
+2,2.jpeg,outofstatement.jpg,0.9978,0.9944,-0.34,0.1333,0.1257,-5.7,0.5352,0.5281,-1.33,1.2198,1.2536,2.77,1.4482,1.4666,1.27,0.868,0.8589,-1.05,300,300,0.0
+3,3.jpeg,utr.jpg,0.8743,0.8586,-1.8,0.1205,0.1063,-11.78,0.4072,0.3161,-22.37,1.1625,1.1556,-0.59,1.7619,2.2596,28.25,0.877,0.8703,-0.76,300,300,0.0
+4,4.jpeg,amtchange(3).jpg,0.8872,0.8833,-0.44,0.1247,0.1125,-9.78,0.426,0.4303,1.01,1.1533,1.1133,-3.47,1.7243,1.72,-0.25,0.8659,0.8592,-0.77,300,300,0.0
+5,5.jpeg,namechange.jpg,0.9278,0.8413,-9.32,0.1287,0.1097,-14.76,0.4434,0.5,12.76,1.1372,1.0109,-11.11,1.7475,1.4099,-19.32,0.8744,0.8621,-1.41,300,300,0.0
+6,34.jpeg,amtchange.jpeg,0.8986,0.8644,-3.81,0.1388,0.1234,-11.1,0.5161,0.4046,-21.6,1.1951,1.1206,-6.23,1.3741,1.7622,28.24,0.8624,0.8605,-0.22,300,300,0.0
+7,35.jpeg,utrchange.jpeg,0.8791,0.8897,1.21,0.1319,0.1241,-5.91,0.426,0.3444,-19.15,1.1811,1.2298,4.12,1.6654,2.185,31.2,0.8679,0.8657,-0.25,300,300,0.0
+8,36.jpeg,datechange.jpeg,0.8954,0.8708,-2.75,0.1272,0.118,-7.23,0.3815,0.3491,-8.49,1.2223,1.1912,-2.54,1.9501,2.1289,9.17,0.8639,0.8599,-0.46,300,300,0.0
+9,37.jpeg,amtchange (2).jpeg,0.9487,0.8967,-5.48,0.1321,0.1209,-8.48,0.5215,0.3947,-24.31,1.2356,1.161,-6.04,1.4488,1.8528,27.89,0.8671,0.866,-0.13,300,300,0.0
+10,38.jpeg,namechange(2).jpeg,0.9489,0.9265,-2.36,0.1351,0.1243,-7.99,0.5087,0.4117,-19.07,1.3287,1.2416,-6.56,1.5071,1.8603,23.44,0.8545,0.8539,-0.07,300,300,0.0
+11,17.jpeg,chatgptss.png,0.9142,0.8129,-11.08,0.1333,0.2986,124.01,0.4374,0.3589,-17.95,1.1325,0.4402,-61.13,1.7287,1.8486,6.94,0.8718,0.8776,0.67,300,420,40.0

@@ -1,0 +1,12 @@
+pair,original,modified,original_format,modified_format,original_width,original_height,modified_width,modified_height,original_size_bytes,modified_size_bytes,original_software,modified_software,original_editors,modified_editors,original_icc,modified_icc,original_exif_count,modified_exif_count
+1,1.jpeg,outofstatemnt.jpg,JPEG,JPEG,716,1600,716,1600,62414,57364,,,,,False,True,0,0
+2,2.jpeg,outofstatement.jpg,JPEG,JPEG,716,1600,716,1600,63622,61997,,,,,False,True,0,0
+3,3.jpeg,utr.jpg,JPEG,JPEG,716,1600,716,1600,58167,56158,,,,,False,True,0,0
+4,4.jpeg,amtchange(3).jpg,JPEG,JPEG,716,1600,716,1600,63224,60681,,,,,False,True,0,0
+5,5.jpeg,namechange.jpg,JPEG,JPEG,716,1600,716,1600,60047,59194,,,,,False,True,0,0
+6,34.jpeg,amtchange.jpeg,JPEG,JPEG,716,1600,716,1600,63428,71482,,Photopea Editor (www.photopea.com),,photopea,False,True,0,6
+7,35.jpeg,utrchange.jpeg,JPEG,JPEG,716,1600,716,1600,62001,71343,,Photopea Editor (www.photopea.com),,photopea,False,True,0,6
+8,36.jpeg,datechange.jpeg,JPEG,JPEG,716,1600,716,1600,65024,75203,,Photopea Editor (www.photopea.com),,photopea,False,True,0,6
+9,37.jpeg,amtchange (2).jpeg,JPEG,JPEG,716,1600,716,1600,63019,71561,,Photopea Editor (www.photopea.com),,photopea,False,True,0,6
+10,38.jpeg,namechange(2).jpeg,JPEG,JPEG,716,1600,716,1600,68540,78361,,Photopea Editor (www.photopea.com),,photopea,False,True,0,6
+11,17.jpeg,chatgptss.png,JPEG,PNG,716,1600,839,1874,61879,1360608,,,,,False,False,0,0

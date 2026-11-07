@@ -1,0 +1,824 @@
+[
+    {
+        "pair": 1,
+        "original": {
+            "filename": "1.jpeg",
+            "file_size_bytes": 62414,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "outofstatemnt.jpg",
+            "file_size_bytes": 57364,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ]
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 2,
+        "original": {
+            "filename": "2.jpeg",
+            "file_size_bytes": 63622,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "outofstatement.jpg",
+            "file_size_bytes": 61997,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ]
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 3,
+        "original": {
+            "filename": "3.jpeg",
+            "file_size_bytes": 58167,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "utr.jpg",
+            "file_size_bytes": 56158,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ]
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 4,
+        "original": {
+            "filename": "4.jpeg",
+            "file_size_bytes": 63224,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "amtchange(3).jpg",
+            "file_size_bytes": 60681,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ]
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 5,
+        "original": {
+            "filename": "5.jpeg",
+            "file_size_bytes": 60047,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "namechange.jpg",
+            "file_size_bytes": 59194,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ]
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 6,
+        "original": {
+            "filename": "34.jpeg",
+            "file_size_bytes": 63428,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "amtchange.jpeg",
+            "file_size_bytes": 71482,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {
+                "ResolutionUnit": 2,
+                "ExifOffset": 158,
+                "Software": "Photopea Editor (www.photopea.com)",
+                "DateTime": "2026:10:29 11:41:08",
+                "XResolution": "72.0",
+                "YResolution": "72.0"
+            },
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ],
+                "xmp": "<binary data: 774 bytes>"
+            },
+            "software": "Photopea Editor (www.photopea.com)",
+            "detected_editor_keywords": [
+                "photopea"
+            ],
+            "observations": [
+                "Software metadata found: Photopea Editor (www.photopea.com)",
+                "Known editing software name appears in metadata.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 7,
+        "original": {
+            "filename": "35.jpeg",
+            "file_size_bytes": 62001,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "utrchange.jpeg",
+            "file_size_bytes": 71343,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {
+                "ResolutionUnit": 2,
+                "ExifOffset": 158,
+                "Software": "Photopea Editor (www.photopea.com)",
+                "DateTime": "2026:10:29 11:40:17",
+                "XResolution": "72.0",
+                "YResolution": "72.0"
+            },
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ],
+                "xmp": "<binary data: 774 bytes>"
+            },
+            "software": "Photopea Editor (www.photopea.com)",
+            "detected_editor_keywords": [
+                "photopea"
+            ],
+            "observations": [
+                "Software metadata found: Photopea Editor (www.photopea.com)",
+                "Known editing software name appears in metadata.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 8,
+        "original": {
+            "filename": "36.jpeg",
+            "file_size_bytes": 65024,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "datechange.jpeg",
+            "file_size_bytes": 75203,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {
+                "ResolutionUnit": 2,
+                "ExifOffset": 158,
+                "Software": "Photopea Editor (www.photopea.com)",
+                "DateTime": "2026:10:29 11:36:02",
+                "XResolution": "72.0",
+                "YResolution": "72.0"
+            },
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ],
+                "xmp": "<binary data: 774 bytes>"
+            },
+            "software": "Photopea Editor (www.photopea.com)",
+            "detected_editor_keywords": [
+                "photopea"
+            ],
+            "observations": [
+                "Software metadata found: Photopea Editor (www.photopea.com)",
+                "Known editing software name appears in metadata.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 9,
+        "original": {
+            "filename": "37.jpeg",
+            "file_size_bytes": 63019,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "amtchange (2).jpeg",
+            "file_size_bytes": 71561,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {
+                "ResolutionUnit": 2,
+                "ExifOffset": 158,
+                "Software": "Photopea Editor (www.photopea.com)",
+                "DateTime": "2026:10:29 11:30:38",
+                "XResolution": "72.0",
+                "YResolution": "72.0"
+            },
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ],
+                "xmp": "<binary data: 774 bytes>"
+            },
+            "software": "Photopea Editor (www.photopea.com)",
+            "detected_editor_keywords": [
+                "photopea"
+            ],
+            "observations": [
+                "Software metadata found: Photopea Editor (www.photopea.com)",
+                "Known editing software name appears in metadata.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 10,
+        "original": {
+            "filename": "38.jpeg",
+            "file_size_bytes": 68540,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "namechange(2).jpeg",
+            "file_size_bytes": 78361,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": true,
+            "exif": {
+                "ResolutionUnit": 2,
+                "ExifOffset": 158,
+                "Software": "Photopea Editor (www.photopea.com)",
+                "DateTime": "2026:10:29 11:28:26",
+                "XResolution": "72.0",
+                "YResolution": "72.0"
+            },
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "dpi": [
+                    72,
+                    72
+                ],
+                "jfif_unit": 1,
+                "jfif_density": [
+                    72,
+                    72
+                ],
+                "xmp": "<binary data: 774 bytes>"
+            },
+            "software": "Photopea Editor (www.photopea.com)",
+            "detected_editor_keywords": [
+                "photopea"
+            ],
+            "observations": [
+                "Software metadata found: Photopea Editor (www.photopea.com)",
+                "Known editing software name appears in metadata.",
+                "Embedded ICC colour profile is present."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    },
+    {
+        "pair": 11,
+        "original": {
+            "filename": "17.jpeg",
+            "file_size_bytes": 61879,
+            "format": "JPEG",
+            "dimensions": {
+                "width": 716,
+                "height": 1600
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {
+                "jfif": 257,
+                "jfif_version": [
+                    1,
+                    1
+                ],
+                "jfif_unit": 0,
+                "jfif_density": [
+                    1,
+                    1
+                ],
+                "progressive": 1,
+                "progression": 1
+            },
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        },
+        "modified": {
+            "filename": "chatgptss.png",
+            "file_size_bytes": 1360608,
+            "format": "PNG",
+            "dimensions": {
+                "width": 839,
+                "height": 1874
+            },
+            "colour_mode": "RGB",
+            "has_icc_profile": false,
+            "exif": {},
+            "other_metadata": {},
+            "software": null,
+            "detected_editor_keywords": [],
+            "observations": [
+                "No readable EXIF or general metadata found.",
+                "No software/editor information found.",
+                "No embedded ICC colour profile found."
+            ],
+            "interpretation": "Metadata provides contextual clues only. Missing or present metadata cannot independently prove image authenticity or manipulation."
+        }
+    }
+]
