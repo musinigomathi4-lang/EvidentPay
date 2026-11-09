@@ -41,3 +41,10 @@ desktop.ini
 # Temporary files
 *.tmp
 *.bak
+
+# Runtime payment data (keep out of source control)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/evidentpay.db
+uploads/statements/*
+uploads/paytm1.jpeg
