@@ -73,9 +73,10 @@ def _norm_date(s):
     s = str(s).strip()
     if not s:
         return None
+    has_explicit_time = bool(re.search(r"\\d{1,2}:\\d{2}", s))
     d = parse_gpay_date(s)
     if d:
-        return d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
+        return d.strftime("%Y-%m-%d"), (d.strftime("%H:%M") if has_explicit_time else None)
     for fmt, has_time in (("%Y-%m-%d %H:%M", 1), ("%Y-%m-%d %H:%M:%S", 1), ("%d-%m-%Y %H:%M", 1),
                           ("%d/%m/%Y %H:%M", 1), ("%Y-%m-%d", 0), ("%d-%m-%Y", 0),
                           ("%d/%m/%Y", 0), ("%d %b %Y", 0), ("%d %B %Y", 0), ("%d %b, %Y", 0)):
