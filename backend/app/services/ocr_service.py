@@ -184,32 +184,48 @@ def _text_score(text):
 
 
 def _ocr_text(img):
-    """Run a small preprocessing/PSM ensemble to tolerate light and dark themes."""
+    """Run fast OCR first, then use sparse-text mode only when key fields are missing."""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     variants = [gray]
 
-    # Upscaling helps screenshots with small text. Keep the original as a candidate.
+    # Upscale small screenshots; avoid unnecessary resizing of already large receipts.
     scale = 1.5 if max(gray.shape) < 2200 else 1.0
     if scale > 1:
         enlarged = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-        variants.append(enlarged)
-    else:
-        enlarged = gray
+        variants = [enlarged]
 
-    _, otsu = cv2.threshold(enlarged, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, otsu = cv2.threshold(
+        variants[0], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
     variants.extend([otsu, 255 - otsu])
 
     candidates = []
     for variant in variants:
-        for psm in (6, 11):
-            try:
-                candidate = pytesseract.image_to_string(variant, config=f"--oem 3 --psm {psm}")
-            except pytesseract.TesseractError:
-                continue
-            candidates.append(candidate)
+        try:
+            candidates.append(
+                pytesseract.image_to_string(variant, config="--oem 3 --psm 6")
+            )
+        except pytesseract.TesseractError:
+            continue
+
     if not candidates:
         return pytesseract.image_to_string(img, config="--oem 3 --psm 6")
-    return max(candidates, key=_text_score)
+
+    best = max(candidates, key=_text_score)
+
+    # PSM 11 can help sparse layouts, but avoid paying for it when the normal
+    # receipt pass already found both transaction reference and date.
+    if not _extract_utr(best) or not parse_transaction_datetime(best):
+        for variant in (variants[0], otsu):
+            try:
+                candidates.append(
+                    pytesseract.image_to_string(variant, config="--oem 3 --psm 11")
+                )
+            except pytesseract.TesseractError:
+                continue
+        best = max(candidates, key=_text_score)
+
+    return best
 
 
 def _amount_from_text(text):
