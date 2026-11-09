@@ -108,7 +108,8 @@ function App() {
   const totalResults = events.reduce((sum, event) => sum + Number(event.total_results || 0), 0);
   const processedEvents = events.filter((event) => Number(event.total_results || 0) > 0).length;
   const matchedCount = results.filter((item) => String(item.status).toLowerCase() === "matched").length;
-  const attentionCount = results.filter((item) => statusTone(item.status) === "review" || String(item.status).toLowerCase().includes("unverified")).length;\n  const screenshotOnlyResults = results.some((item) => item.checks?.analysis_type === "single_image_forensics");
+  const attentionCount = results.filter((item) => statusTone(item.status) === "review" || String(item.status).toLowerCase().includes("unverified")).length;
+  const screenshotOnlyResults = results.some((item) => item.checks?.analysis_type === "single_image_forensics");
 
   function startNewEvent() {
     setEventName("");
