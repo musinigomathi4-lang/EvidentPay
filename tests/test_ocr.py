@@ -33,7 +33,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # the folder that contains backend/ and tests/
 sys.path.insert(0, str(ROOT))
 
-from backend.app.services.ocr_service import extract_payment  # noqa: E402
+from backend.app.services.ocr_service import extract_payment, _ocr_text, _extract_utr  # noqa: E402
+import cv2  # noqa: E402
 from backend.app.utils.validators import parse_gpay_date  # noqa: E402
 
 IMG_EXT = (".jpeg", ".jpg", ".png")
@@ -277,3 +278,18 @@ def test_date_only_ground_truth_does_not_require_time():
 
 def test_ground_truth_with_time_still_checks_time():
     assert _norm_date("03 Oct 2026, 10:00am") == ("2026-10-03", "10:00")
+
+def test_ocr_text_reads_inverted_contrast_theme():
+    import pytest
+
+    img_dir = pick_img_dir()
+    if img_dir is None:
+        pytest.skip("labelled screenshot folder is not available")
+    sample = img_dir / "1.jpeg"
+    image = cv2.imread(str(sample))
+    if image is None:
+        pytest.skip("sample screenshot could not be read")
+    inverted = 255 - image
+    text = _ocr_text(inverted)
+    assert _extract_utr(text), "UTR should remain readable after contrast polarity inversion"
+    assert parse_gpay_date(text), "transaction date should remain readable after contrast polarity inversion"
