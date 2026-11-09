@@ -19,7 +19,7 @@ from ..utils.validators import (
     parse_transaction_datetime,
 )
 
-_WIN_DEFAULT = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+_WIN_DEFAULT = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 _cmd = os.environ.get("TESSERACT_CMD") or (
     _WIN_DEFAULT if os.path.exists(_WIN_DEFAULT) else shutil.which("tesseract")
 )
@@ -32,14 +32,14 @@ DIGIT_HEIGHTS = (28, 32, 36, 40, 44, 48, 52)
 def _clean_name(value):
     if not value:
         return None
-    value = re.sub(r"\\s+", " ", value).strip(" :|-/")
-    value = re.sub(r"\\s+(?:UPI|IMPS|NEFT|HDFC|SBI|ICICI|AXIS|BANK)\\b.*$", "", value, flags=re.I)
-    value = re.split(r"\\s+(?:on|via)\\s+(?:Google Pay|PhonePe|Paytm|BHIM)\\b", value, flags=re.I)[0]
+    value = re.sub(r"\s+", " ", value).strip(" :|-/")
+    value = re.sub(r"\s+(?:UPI|IMPS|NEFT|HDFC|SBI|ICICI|AXIS|BANK)\b.*$", "", value, flags=re.I)
+    value = re.split(r"\s+(?:on|via)\s+(?:Google Pay|PhonePe|Paytm|BHIM)\b", value, flags=re.I)[0]
     value = value.strip(" :|-/")
     if not value or len(value) > 100:
         return None
     # Do not report a masked phone number, VPA, or account number as a person's name.
-    if re.search(r"\\d{3,}|[xX*]{3,}|@|\\+\\s*91", value):
+    if re.search(r"\d{3,}|[xX*]{3,}|@|\+\s*91", value):
         return None
     if not re.search(r"[A-Za-z]{2}", value):
         return None
@@ -51,7 +51,7 @@ def _clean_name(value):
 def _extract_labeled_person(text, labels):
     label_pattern = "|".join(labels)
     match = re.search(
-        rf"^\\s*(?:{label_pattern})\\s*:?\\s*(.*?)\\s*$",
+        rf"^\s*(?:{label_pattern})\s*:?\s*(.*?)\s*$",
         text or "",
         re.I | re.M,
     )
@@ -62,7 +62,7 @@ def _extract_labeled_person(text, labels):
         lines = (text or "").splitlines()
         line_index = next(
             (i for i, line in enumerate(lines)
-             if re.match(rf"^\\s*(?:{label_pattern})\\s*:?\\s*$", line, re.I)),
+             if re.match(rf"^\s*(?:{label_pattern})\s*:?\s*$", line, re.I)),
             None,
         )
         if line_index is not None:
@@ -70,7 +70,7 @@ def _extract_labeled_person(text, labels):
                 following = following.strip()
                 if not following:
                     continue
-                if re.search(r"^(?:\\+?\\d|[xX*]{3,}|\\+?91\\b)", following):
+                if re.search(r"^(?:\+?\d|[xX*]{3,}|\+?91\b)", following):
                     return None
                 candidate = following
                 break
@@ -79,14 +79,14 @@ def _extract_labeled_person(text, labels):
 
 def _extract_contact_name(text):
     """Header/contact name, commonly displayed as 'From NAME'."""
-    return _extract_labeled_person(text, [r"From(?!\\s*:)"])
+    return _extract_labeled_person(text, [r"From(?!\s*:)"])
 
 
 def _extract_sender_name(text):
     """Sender name across 'From:', 'Received from', and 'Paid by' labels."""
     return _extract_labeled_person(
         text,
-        [r"From", r"Received\\s+from", r"Paid\\s+by", r"Sent\\s+by"],
+        [r"From", r"Received\s+from", r"Paid\s+by", r"Sent\s+by"],
     )
 
 
@@ -94,23 +94,23 @@ def _extract_utr(text):
     """Extract a 12-digit UTR without confusing app-specific transaction IDs."""
     text = text or ""
     labels = re.finditer(
-        r"\\b(?:UTR|UPI\\s*(?:transaction\\s*ID|reference(?:\\s*(?:no|number))?|ref\\s*(?:no|number)?))\\b\\s*[:#-]?",
+        r"\b(?:UTR|UPI\s*(?:transaction\s*ID|reference(?:\s*(?:no|number))?|ref\s*(?:no|number)?))\b\s*[:#-]?",
         text,
         re.I,
     )
     for label in labels:
         window = text[label.end():label.end() + 100]
-        digits = re.search(r"(?<!\\d)(\\d{12})(?!\\d)", window.replace(" ", ""))
+        digits = re.search(r"(?<!\d)(\d{12})(?!\d)", window.replace(" ", ""))
         if digits:
             return digits.group(1)
 
     # Some receipts place the UTR label on the previous OCR line.
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     for index, line in enumerate(lines):
-        if re.search(r"\\b(?:UTR|UPI\\s*(?:transaction\\s*ID|reference|ref))\\b", line, re.I):
+        if re.search(r"\b(?:UTR|UPI\s*(?:transaction\s*ID|reference|ref))\b", line, re.I):
             for candidate in lines[index:index + 3]:
-                compact = re.sub(r"\\s+", "", candidate)
-                found = re.search(r"(?<!\\d)(\\d{12})(?!\\d)", compact)
+                compact = re.sub(r"\s+", "", candidate)
+                found = re.search(r"(?<!\d)(\d{12})(?!\d)", compact)
                 if found:
                     return found.group(1)
     return None
@@ -120,15 +120,15 @@ def _extract_payment_app(text):
     """Prefer receipt-origin signatures over incidental recipient VPA providers."""
     value = text or ""
     rules = [
-        ("PhonePe", r"\\bPhonePe\\s+(?:Transaction|Reference|UPI)\\b|\\bPhonePe\\s+Support\\b|\\bView\\s+History\\b"),
-        ("Paytm", r"\\bSent\\s+using\\s+Paytm\\b|\\bPaytm\\s+UPI\\b|\\bPaytm\\s+Transaction\\s+ID\\b"),
-        ("Google Pay", r"\\bGoogle\\s+transaction\\s+ID\\b|\\b(?:Paid|Sent|Received)\\s+(?:using|via|through)\\s+Google\\s+Pay\\b|\\bGoogle\\s+Pay\\s+transaction\\b"),
-        ("BHIM", r"\\bBHIM\\s+(?:UPI|app|transaction)\\b"),
-        ("Amazon Pay", r"\\bAmazon\\s+Pay\\s+(?:UPI|transaction|receipt)\\b"),
-        ("WhatsApp Pay", r"\\bWhatsApp\\s+Pay\\b"),
-        ("MobiKwik", r"\\bMobiKwik\\b"),
-        ("Airtel Thanks", r"\\bAirtel\\s+Thanks\\b"),
-        ("Freecharge", r"\\bFreecharge\\b"),
+        ("PhonePe", r"\bPhonePe\s+(?:Transaction|Reference|UPI)\b|\bPhonePe\s+Support\b|\bView\s+History\b"),
+        ("Paytm", r"\bSent\s+using\s+Paytm\b|\bPaytm\s+UPI\b|\bPaytm\s+Transaction\s+ID\b"),
+        ("Google Pay", r"\bGoogle\s+transaction\s+ID\b|\b(?:Paid|Sent|Received)\s+(?:using|via|through)\s+Google\s+Pay\b|\bGoogle\s+Pay\s+transaction\b"),
+        ("BHIM", r"\bBHIM\s+(?:UPI|app|transaction)\b"),
+        ("Amazon Pay", r"\bAmazon\s+Pay\s+(?:UPI|transaction|receipt)\b"),
+        ("WhatsApp Pay", r"\bWhatsApp\s+Pay\b"),
+        ("MobiKwik", r"\bMobiKwik\b"),
+        ("Airtel Thanks", r"\bAirtel\s+Thanks\b"),
+        ("Freecharge", r"\bFreecharge\b"),
     ]
     for app, pattern in rules:
         if re.search(pattern, value, re.I):
@@ -138,11 +138,11 @@ def _extract_payment_app(text):
 
 def _extract_status(text):
     value = text or ""
-    if re.search(r"\\b(?:transaction\\s+)?successful\\b|\\bcompleted\\b|\\bsuccess\\b", value, re.I):
+    if re.search(r"\b(?:transaction\s+)?successful\b|\bcompleted\b|\bsuccess\b", value, re.I):
         return "Completed"
-    if re.search(r"\\bfailed\\b|\\bdeclined\\b|\\breversed\\b", value, re.I):
+    if re.search(r"\bfailed\b|\bdeclined\b|\breversed\b", value, re.I):
         return "Failed"
-    if re.search(r"\\bpending\\b|\\bin progress\\b|\\bprocessing\\b", value, re.I):
+    if re.search(r"\bpending\b|\bin progress\b|\bprocessing\b", value, re.I):
         return "Pending"
     return None
 
@@ -151,11 +151,11 @@ def _text_score(text):
     if not text:
         return 0
     labels = re.findall(
-        r"\\b(?:UTR|UPI|transaction|received|from|paid|amount|completed|successful|failed|PhonePe|Paytm|Google|BHIM|INR)\\b",
+        r"\b(?:UTR|UPI|transaction|received|from|paid|amount|completed|successful|failed|PhonePe|Paytm|Google|BHIM|INR)\b",
         text,
         re.I,
     )
-    return len(re.sub(r"\\s", "", text)) + 24 * len(labels)
+    return len(re.sub(r"\s", "", text)) + 24 * len(labels)
 
 
 def _ocr_text(img):
@@ -194,10 +194,10 @@ def _amount_from_text(text):
         clean = line.strip()
         if not clean:
             continue
-        if re.search(r"UTR|transaction\\s*ID|reference|\\bdate\\b|\\btime\\b|\\+?91|@|account|balance|bank", clean, re.I):
+        if re.search(r"UTR|transaction\s*ID|reference|\bdate\b|\btime\b|\+?91|@|account|balance|bank", clean, re.I):
             continue
         match = re.search(
-            r"(?:₹|Rs\\.?|INR|[*%])\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)",
+            r"(?:₹|Rs\.?|INR|[*%])\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
             clean,
             re.I,
         )
