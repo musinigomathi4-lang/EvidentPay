@@ -117,7 +117,7 @@ def _extract_utr(text):
 
 def _extract_payment_app(text):
     """Prefer receipt-origin signatures over incidental recipient VPA providers."""
-    value = re.sub(r"[\\w.+-]+@[\\w.-]+", " ", text or "")
+    value = re.sub(r"[\w.+-]+@[\w.-]+", " ", text or "")
     rules = [
         ("PhonePe", r"\bPhonePe\s+(?:Transaction|Reference|UPI)\b|\bPhonePe\s+Support\b|\bView\s+History\b"),
         ("Paytm", r"\bSent\s+using\s+Paytm\b|\bPaytm\s+UPI\b|\bPaytm\s+Transaction\s+ID\b"),
