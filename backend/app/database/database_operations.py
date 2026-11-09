@@ -444,34 +444,35 @@ def get_all_events():
     finally:
         db.close()
 
-def delete_screenshot_only_results(event_id):
-    """Delete only results created by the old screenshot-only fallback."""
-
+def delete_screenshot_analysis_results(event_id):
+    """Delete only screenshot-forensics results; never delete bank reconciliation."""
     db = SessionLocal()
-
     try:
-        old_results = (
+        results = (
             db.query(ReconciliationResult)
             .join(PaymentClaim)
-            .filter(
-                PaymentClaim.event_id == event_id,
-                ReconciliationResult.status == "UNVERIFIED_NO_BANK_STATEMENT"
-            )
+            .filter(PaymentClaim.event_id == event_id)
             .all()
         )
-
-        count = len(old_results)
-
-        for result in old_results:
-            db.delete(result)
-
+        deleted = 0
+        for result in results:
+            try:
+                checks = json.loads(result.checks_json or "{}")
+            except (TypeError, ValueError):
+                checks = {}
+            if checks.get("analysis_type") == "single_image_forensics":
+                db.delete(result)
+                deleted += 1
+            elif result.status == "UNVERIFIED_NO_BANK_STATEMENT":
+                # Clean up records created by the earlier placeholder endpoint.
+                db.delete(result)
+                deleted += 1
         db.commit()
-
-        return count
-
+        return deleted
     except Exception:
         db.rollback()
         raise
-
     finally:
         db.close()
+
+
