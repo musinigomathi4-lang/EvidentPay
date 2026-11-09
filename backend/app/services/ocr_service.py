@@ -136,12 +136,12 @@ def _extract_payment_app(text):
     # Recognize a standalone receipt header, but not a recipient address such as
     # '... on Google Pay' or '... on PhonePe'.
     for app, brand in (
-        ("Google Pay", r"Google\\s+Pay"),
+        ("Google Pay", r"Google\s+Pay"),
         ("PhonePe", r"PhonePe"),
         ("Paytm", r"Paytm"),
         ("BHIM", r"BHIM"),
     ):
-        if re.search(rf"(?<!on )\\b{brand}\\b", value, re.I):
+        if re.search(rf"(?<!on )\b{brand}\b", value, re.I):
             return app
     return None
 
