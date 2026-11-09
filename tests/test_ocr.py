@@ -33,7 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # the folder that contains backend/ and tests/
 sys.path.insert(0, str(ROOT))
 
-from backend.app.services.ocr_service import extract_payment, _ocr_text, _extract_utr  # noqa: E402
+from backend.app.services.ocr_service import extract_payment  # noqa: E402
 import cv2  # noqa: E402
 from backend.app.utils.validators import parse_gpay_date  # noqa: E402
 
