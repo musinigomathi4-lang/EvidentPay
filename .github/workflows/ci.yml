@@ -2,7 +2,7 @@ name: EvidentPay checks
 
 on:
   push:
-    branches: ["main", "finalize/ocr-and-e2e"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 
