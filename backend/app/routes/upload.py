@@ -9,7 +9,8 @@ import hashlib
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-
+from app.services.evidence_service import analyze_single_screenshot
+from app.database.database_operations import delete_screenshot_only_results
 from app.database.database_operations import (
     create_event,
     get_event,
@@ -367,65 +368,105 @@ def upload_bank_statement(
 
 @router.post("/{event_id}/analyze-without-statement")
 def analyze_without_statement(event_id: int):
-    """Create an explicitly unverified review when no recipient statement is available."""
-    event = get_event(event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
 
-    claims = get_payments_for_matching(event_id)
+    event = get_event(event_id)
+
+    if not event:
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found"
+        )
+
+    claims = get_payment_claims(event_id)
+
     if not claims:
         raise HTTPException(
             status_code=400,
-            detail="Upload payment screenshots before starting screenshot-only review"
+            detail="Upload payment screenshots before analysis"
         )
 
-    if get_reconciliation_results(event_id):
-        raise HTTPException(
-            status_code=409,
-            detail="This event already has review results"
-        )
+    existing_results = get_reconciliation_results(event_id)
 
-    duplicate_utr_counts = Counter(
-        str(claim.get("utr")).strip()
-        for claim in claims
-        if claim.get("utr")
+    # Do not overwrite actual bank reconciliation results.
+    if existing_results:
+        if any(
+            result.status != "UNVERIFIED_NO_BANK_STATEMENT"
+            for result in existing_results
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Bank reconciliation results already exist for this event"
+            )
+
+        # Remove results created by the previous placeholder endpoint.
+        delete_screenshot_only_results(event_id)
+
+    analysis_dir = (
+        BACKEND_DIR / "uploads" / "analysis" / f"event_{event_id}"
     )
+
     results = []
+    failed = []
+
     for claim in claims:
-        utr = str(claim.get("utr") or "").strip()
-        reasons = [
-            "No recipient-side bank statement was supplied. This payment is NOT verified."
-        ]
-        if not claim.get("amount"):
-            reasons.append("Amount could not be reliably extracted from the screenshot.")
-        if not utr:
-            reasons.append("UTR could not be extracted from the screenshot.")
-        if utr and duplicate_utr_counts[utr] > 1:
-            reasons.append("The same UTR appears in multiple uploaded claims.")
 
-        results.append({
-            "payment_id": claim["id"],
-            "bank_transaction": None,
-            "status": "UNVERIFIED_NO_BANK_STATEMENT",
-            "reasons": reasons,
-            "checks": {
-                "amount_extracted": bool(claim.get("amount")),
-                "utr_extracted": bool(utr),
-                "duplicate_utr_in_uploads": bool(utr and duplicate_utr_counts[utr] > 1),
-                "bank_credit_confirmed": False
+        try:
+            analysis = analyze_single_screenshot(
+                image_path=claim.screenshot_path,
+                output_dir=analysis_dir
+            )
+
+            results.append({
+                "payment_id": claim.claim_id,
+                "bank_transaction": None,
+                "status": analysis["assessment"],
+                "reasons": analysis["indicators"],
+                "checks": {
+                    "analysis_type": "single_image_forensics",
+                    "metadata_analysis": analysis["metadata_analysis"],
+                    "ela_analysis": analysis["ela_analysis"],
+                    "noise_analysis": analysis["noise_analysis"],
+                    "limitations": analysis["limitations"]
+                }
+            })
+
+        except Exception as error:
+            failed.append({
+                "claim_id": claim.claim_id,
+                "filename": claim.screenshot_filename,
+                "error": str(error)
+            })
+
+    if not results:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Could not analyse any screenshots",
+                "failed": failed
             }
-        })
+        )
 
-    saved = save_reconciliation_results(event_id=event_id, results=results)
+    saved_results = save_reconciliation_results(
+        event_id=event_id,
+        results=results
+    )
+
+    summary = Counter(
+        result["status"] for result in results
+    )
+
     return {
         "event_id": event_id,
+        "analysis_type": "screenshot_integrity_analysis",
         "total_claims": len(claims),
-        "total_reconciled": len(saved),
-        "verified": 0,
-        "unverified": len(saved),
-        "message": "Screenshot-only review completed. No payment has been bank-verified."
+        "total_analyzed": len(saved_results),
+        "failed": failed,
+        "summary": dict(summary),
+        "message": (
+            "Screenshot integrity analysis completed. "
+            "No bank statement was used."
+        )
     }
-
 
 # --------------------------------------------------
 # 5. RECONCILE PAYMENTS

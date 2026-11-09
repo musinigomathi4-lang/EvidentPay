@@ -181,13 +181,11 @@ def get_payments_for_matching(event_id):
 
         for claim in claims:
             payments.append({
-                # Database claim ID becomes the matching payment ID.
                 "id": claim.claim_id,
-
                 "amount": claim.amount,
                 "utr": claim.utr,
                 "date": claim.transaction_date,
-
+                "sender_name": claim.sender_name,
                 "flags": json.loads(claim.flags_json or "[]"),
                 "needs_review": bool(claim.needs_review),
             })
@@ -442,6 +440,38 @@ def get_all_events():
             })
 
         return event_history
+
+    finally:
+        db.close()
+
+def delete_screenshot_only_results(event_id):
+    """Delete only results created by the old screenshot-only fallback."""
+
+    db = SessionLocal()
+
+    try:
+        old_results = (
+            db.query(ReconciliationResult)
+            .join(PaymentClaim)
+            .filter(
+                PaymentClaim.event_id == event_id,
+                ReconciliationResult.status == "UNVERIFIED_NO_BANK_STATEMENT"
+            )
+            .all()
+        )
+
+        count = len(old_results)
+
+        for result in old_results:
+            db.delete(result)
+
+        db.commit()
+
+        return count
+
+    except Exception:
+        db.rollback()
+        raise
 
     finally:
         db.close()
