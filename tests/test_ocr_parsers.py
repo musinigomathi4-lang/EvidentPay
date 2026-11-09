@@ -60,3 +60,14 @@ def test_ambiguous_amounts_are_not_guessed():
     amount, display = _amount_from_text("Paid ₹500\nRefund ₹100")
     assert amount is None
     assert display is None
+
+def test_google_pay_receipt_header():
+    assert _extract_payment_app("Google Pay\\nPayment successful\\nUTR: 123456789012") == "Google Pay"
+
+
+def test_recipient_vpa_does_not_identify_receipt_app():
+    assert _extract_payment_app("Paid to user@paytm") is None
+
+
+def test_recipient_google_pay_mention_does_not_identify_receipt_app():
+    assert _extract_payment_app("Paid to shop@okaxis on Google Pay") is None
