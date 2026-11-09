@@ -25,7 +25,7 @@ _cmd = os.environ.get("TESSERACT_CMD") or (
 if _cmd:
     pytesseract.pytesseract.tesseract_cmd = _cmd
 
-DIGIT_HEIGHTS = (28, 32, 36, 40, 44, 48, 52)
+DIGIT_HEIGHTS = (32, 36, 40, 44, 48)
 
 
 def _clean_name(value):
@@ -186,7 +186,7 @@ def _ocr_text(img):
 
     candidates = []
     for variant in variants:
-        for psm in (6, 11, 4):
+        for psm in (6, 11):
             try:
                 candidate = pytesseract.image_to_string(variant, config=f"--oem 3 --psm {psm}")
             except pytesseract.TesseractError:
