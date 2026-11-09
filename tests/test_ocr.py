@@ -279,7 +279,7 @@ def test_date_only_ground_truth_does_not_require_time():
 def test_ground_truth_with_time_still_checks_time():
     assert _norm_date("03 Oct 2026, 10:00am") == ("2026-10-03", "10:00")
 
-def test_ocr_text_reads_inverted_contrast_theme():
+def test_full_ocr_pipeline_handles_inverted_contrast_theme(tmp_path):
     import pytest
 
     img_dir = pick_img_dir()
@@ -289,7 +289,12 @@ def test_ocr_text_reads_inverted_contrast_theme():
     image = cv2.imread(str(sample))
     if image is None:
         pytest.skip("sample screenshot could not be read")
-    inverted = 255 - image
-    text = _ocr_text(inverted)
-    assert _extract_utr(text), "UTR should remain readable after contrast polarity inversion"
-    assert parse_gpay_date(text), "transaction date should remain readable after contrast polarity inversion"
+
+    original = extract_payment(str(sample))
+    inverted_path = tmp_path / "inverted_receipt.png"
+    assert cv2.imwrite(str(inverted_path), 255 - image)
+    inverted = extract_payment(str(inverted_path))
+
+    assert inverted["utr"] == original["utr"]
+    assert inverted["transaction_date"] == original["transaction_date"]
+    assert inverted["amount"] == original["amount"]
