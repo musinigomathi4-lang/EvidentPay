@@ -4,9 +4,9 @@ from datetime import datetime
 
 # Accept plain numbers, Indian comma grouping and optional paise.
 AMOUNT_RE = re.compile(
-    r"^(?:\\d+|\\d{1,2}(?:,\\d{2})*,\\d{3}|\\d{1,3}(?:,\\d{3})+)(?:\\.\\d{1,2})?$"
+    r"^(?:\d+|\d{1,2}(?:,\d{2})*,\d{3}|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$"
 )
-UTR_RE = re.compile(r"^\\d{12}$")
+UTR_RE = re.compile(r"^\d{12}$")
 
 _MONTHS = {
     name.lower(): index
@@ -64,14 +64,14 @@ def parse_transaction_datetime(text: str):
       2026-10-03 18:02
     Numeric dates are interpreted as day/month/year.
     """
-    value = re.sub(r"\\s+", " ", str(text or "")).strip()
+    value = re.sub(r"\s+", " ", str(text or "")).strip()
     if not value:
         return None
 
     # Time first: '06:02 PM on 03 Oct 2026'
     time_first = re.search(
-        r"(?<!\\d)(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)\\s+on\\s+"
-        r"(\\d{1,2})\\s+([A-Za-z]{3,9})\\.?[,]?\\s+(\\d{4})",
+        r"(?<!\d)(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)\s+on\s+"
+        r"(\d{1,2})\s+([A-Za-z]{3,9})\.?[,]?\s+(\d{4})",
         value,
         re.I,
     )
@@ -85,8 +85,8 @@ def parse_transaction_datetime(text: str):
 
     # Date first with 12-hour or 24-hour time.
     month_first = re.search(
-        r"(?<!\\d)(\\d{1,2})\\s+([A-Za-z]{3,9})\\.?[,]?\\s+(\\d{4})"
-        r"(?:\\s*[,|]?\\s*(?:at\\s*)?(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)?)?",
+        r"(?<!\d)(\d{1,2})\s+([A-Za-z]{3,9})\.?[,]?\s+(\d{4})"
+        r"(?:\s*[,|]?\s*(?:at\s*)?(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?)?",
         value,
         re.I,
     )
@@ -100,8 +100,8 @@ def parse_transaction_datetime(text: str):
 
     # Numeric dates: DD/MM/YYYY or DD-MM-YYYY, optionally with time.
     numeric = re.search(
-        r"(?<!\\d)(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})"
-        r"(?:[ T,]+(\\d{1,2}):(\\d{2})\\s*([ap]\\.?m\\.?)?)?",
+        r"(?<!\d)(\d{1,2})[/-](\d{1,2})[/-](\d{4})"
+        r"(?:[ T,]+(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?)?",
         value,
         re.I,
     )
@@ -113,8 +113,8 @@ def parse_transaction_datetime(text: str):
 
     # ISO-style YYYY-MM-DD, optionally with 24-hour time.
     iso = re.search(
-        r"(?<!\\d)(\\d{4})-(\\d{1,2})-(\\d{1,2})"
-        r"(?:[ T](\\d{1,2}):(\\d{2}))?",
+        r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})"
+        r"(?:[ T](\d{1,2}):(\d{2}))?",
         value,
     )
     if iso:
