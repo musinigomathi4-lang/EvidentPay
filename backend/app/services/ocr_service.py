@@ -160,12 +160,27 @@ def _extract_status(text):
 def _text_score(text):
     if not text:
         return 0
+
     labels = re.findall(
         r"\b(?:UTR|UPI|transaction|received|from|paid|amount|completed|successful|failed|PhonePe|Paytm|Google|BHIM|INR)\b",
         text,
         re.I,
     )
-    return len(re.sub(r"\s", "", text)) + 24 * len(labels)
+    score = len(re.sub(r"\s", "", text)) + 24 * len(labels)
+
+    # Prefer OCR variants that preserve fields required by payment review.
+    if _extract_utr(text):
+        score += 80
+    if parse_transaction_datetime(text):
+        score += 80
+    if _extract_status(text):
+        score += 20
+    if _amount_from_text(text)[0] is not None:
+        score += 40
+    if _extract_sender_name(text):
+        score += 15
+
+    return score
 
 
 def _ocr_text(img):
