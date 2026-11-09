@@ -271,3 +271,9 @@ if __name__ == "__main__":
     csv_path, img_dir = _resolve(sys.argv[1] if len(sys.argv) > 1 else None,
                                  sys.argv[2] if len(sys.argv) > 2 else None)
     print_report(*run(csv_path, img_dir))
+def test_date_only_ground_truth_does_not_require_time():
+    assert _norm_date("2026-10-07") == ("2026-10-07", None)
+
+
+def test_ground_truth_with_time_still_checks_time():
+    assert _norm_date("03 Oct 2026, 10:00am") == ("2026-10-03", "10:00")
