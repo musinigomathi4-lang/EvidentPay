@@ -10,7 +10,7 @@ import hashlib
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from app.services.evidence_service import analyze_single_screenshot
-from app.database.database_operations import delete_screenshot_only_results
+from app.database.database_operations import delete_screenshot_analysis_results
 from app.database.database_operations import (
     create_event,
     get_event,
@@ -387,19 +387,27 @@ def analyze_without_statement(event_id: int):
 
     existing_results = get_reconciliation_results(event_id)
 
-    # Do not overwrite actual bank reconciliation results.
+    # Screenshot-only analysis may be rerun, but must never erase bank results.
     if existing_results:
-        if any(
-            result.status != "UNVERIFIED_NO_BANK_STATEMENT"
-            for result in existing_results
-        ):
+        bank_results = []
+        for result in existing_results:
+            try:
+                checks = json.loads(result.checks_json or "{}")
+            except (TypeError, ValueError):
+                checks = {}
+            if (
+                checks.get("analysis_type") != "single_image_forensics"
+                and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
+            ):
+                bank_results.append(result)
+
+        if bank_results:
             raise HTTPException(
                 status_code=409,
-                detail="Bank reconciliation results already exist for this event"
+                detail="Bank reconciliation results already exist. Screenshot-only review cannot replace them."
             )
 
-        # Remove results created by the previous placeholder endpoint.
-        delete_screenshot_only_results(event_id)
+        delete_screenshot_analysis_results(event_id)
 
     analysis_dir = (
         BACKEND_DIR / "uploads" / "analysis" / f"event_{event_id}"
@@ -502,10 +510,26 @@ def reconcile_event_payments(event_id: int):
     existing_results = get_reconciliation_results(event_id)
 
     if existing_results:
-        raise HTTPException(
-            status_code=409,
-            detail="This event has already been reconciled"
-        )
+        bank_results = []
+        for result in existing_results:
+            try:
+                checks = json.loads(result.checks_json or "{}")
+            except (TypeError, ValueError):
+                checks = {}
+            if (
+                checks.get("analysis_type") != "single_image_forensics"
+                and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
+            ):
+                bank_results.append(result)
+
+        if bank_results:
+            raise HTTPException(
+                status_code=409,
+                detail="This event already has bank reconciliation results"
+            )
+
+        # A bank statement is stronger evidence; replace screenshot-only results.
+        delete_screenshot_analysis_results(event_id)
 
     # Existing deterministic matching logic.
     results = match_payments(
