@@ -1,4 +1,5 @@
 from pathlib import Path
+from decimal import Decimal, InvalidOperation
 import re
 
 from app.services.forensic_service import (
@@ -20,8 +21,18 @@ def _normalise(value, field):
         return None
 
     if field == "amount":
-        digits = re.sub(r"[^0-9]", "", value)
-        return digits or None
+        # Parse INR values numerically so display formatting does not create
+        # false mismatches (for example, "1,000.00" and "1000").
+        amount_text = re.sub(r"(?i)\bINR\b", "", value)
+        amount_text = amount_text.replace("₹", "").replace(",", "")
+        amount_text = re.sub(r"\s+", "", amount_text)
+        if not re.fullmatch(r"[+-]?\d+(?:\.\d{1,2})?", amount_text):
+            return None
+        try:
+            amount = Decimal(amount_text)
+        except InvalidOperation:
+            return None
+        return format(amount.normalize(), "f")
 
     if field == "utr":
         return re.sub(r"[^A-Z0-9]", "", value.upper()) or None
@@ -289,14 +300,9 @@ def analyze_single_screenshot(image_path, output_dir):
 
     if detected_editors:
         indicators.append(
-            "Known image-editing software was identified in metadata: "
-            + ", ".join(detected_editors)
-        )
-
-    if not metadata.get("software"):
-        indicators.append(
-            "No software information was found in image metadata. "
-            "WhatsApp may remove metadata during sharing."
+            "Known image-editing software was identified in metadata. "
+            "This is a review signal, not proof that the payment screenshot "
+            "was manipulated: " + ", ".join(detected_editors)
         )
 
     if noise_error:
@@ -306,15 +312,14 @@ def analyze_single_screenshot(image_path, output_dir):
 
     if not indicators:
         indicators.append(
-            "No specific single-image editing indicators were identified."
+            "No credible genuine reference was available. ELA and noise "
+            "measurements are descriptive only and cannot determine whether "
+            "this screenshot was manipulated."
         )
 
-    # A single image without a genuine reference cannot be declared clean.
-    assessment = (
-        "POTENTIALLY_ALTERED"
-        if detected_editors
-        else "REVIEW_RECOMMENDED"
-    )
+    # Without a genuine reference, single-image checks cannot establish
+    # manipulation. Keep the result explicitly inconclusive.
+    assessment = "INCONCLUSIVE"
 
     return {
         "filename": image_path.name,
@@ -372,8 +377,7 @@ def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
         if not value:
             return None
         if field == "amount":
-            digits = re.sub(r"[^0-9]", "", value)
-            return digits or None
+            return _normalise(value, field)
         if field == "utr":
             return re.sub(r"[^A-Z0-9]", "", value.upper()) or None
         if field == "transaction_date":
