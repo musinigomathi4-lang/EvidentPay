@@ -35,6 +35,9 @@ from app.services.matching_service import match_payments
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+PROJECT_DIR = BACKEND_DIR.parent
+PAIR_CSV_PATH = PROJECT_DIR / "data" / "screenshot_pairs.csv"
+REFERENCE_SCREENSHOT_DIR = PROJECT_DIR / "uploads" / "screenshots" / "real_ss"
 
 SCREENSHOT_DIR = BACKEND_DIR / "uploads" / "screenshots"
 STATEMENT_DIR = BACKEND_DIR / "uploads" / "statements"
@@ -42,7 +45,29 @@ STATEMENT_DIR = BACKEND_DIR / "uploads" / "statements"
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
+
 MAX_STATEMENT_SIZE = 20 * 1024 * 1024
+
+
+def _load_screenshot_pairs():
+    """Load modified-upload -> genuine-reference filenames from the project CSV."""
+    if not PAIR_CSV_PATH.is_file():
+        return {}
+
+    pairs = {}
+    with PAIR_CSV_PATH.open("r", encoding="utf-8-sig", newline="") as source:
+        for row in csv.DictReader(source):
+            original_name = Path(
+                row.get("original_filename", "")
+            ).name
+            modified_name = Path(
+                row.get("modified_filename", "")
+            ).name
+
+            if original_name and modified_name:
+                pairs[modified_name.casefold()] = original_name
+
+    return pairs
 
 
 class EventCreateRequest(BaseModel):
@@ -387,8 +412,12 @@ def analyze_without_statement(event_id: int):
 
     existing_results = get_reconciliation_results(event_id)
 
-    # Never allow screenshot-only analysis to erase bank results.
+    # Screenshot-only analysis may be rerun, but it must never erase bank results.
     if existing_results:
+        screenshot_analysis_types = {
+            "single_image_forensics",
+            "paired_image_forensics",
+        }
         bank_results = []
 
         for result in existing_results:
@@ -398,7 +427,7 @@ def analyze_without_statement(event_id: int):
                 checks = {}
 
             if (
-                checks.get("analysis_type") != "single_image_forensics"
+                checks.get("analysis_type") not in screenshot_analysis_types
                 and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
             ):
                 bank_results.append(result)
@@ -417,47 +446,109 @@ def analyze_without_statement(event_id: int):
     analysis_dir = (
         BACKEND_DIR / "uploads" / "analysis" / f"event_{event_id}"
     )
+    analysis_dir.mkdir(parents=True, exist_ok=True)
 
+    screenshot_pairs = _load_screenshot_pairs()
     results = []
     failed = []
+    paired_count = 0
+    single_count = 0
 
     for claim in claims:
-
         try:
-            analysis = analyze_single_screenshot(
-                image_path=claim.screenshot_path,
-                output_dir=analysis_dir
+            uploaded_name = Path(
+                claim.screenshot_filename or claim.screenshot_path
+            ).name
+            original_name = screenshot_pairs.get(uploaded_name.casefold())
+            reference_path = (
+                REFERENCE_SCREENSHOT_DIR / original_name
+                if original_name else None
             )
+
+            if reference_path and reference_path.is_file():
+                analysis = analyze_paired_screenshot(
+                    original_path=reference_path,
+                    modified_path=claim.screenshot_path,
+                    output_dir=analysis_dir,
+                )
+                analysis_type = "paired_image_forensics"
+                paired_count += 1
+
+                reference = analysis["reference_comparison"]
+                analysis_images = {
+                    "annotated_comparison": (
+                        f"/analysis/event_{event_id}/{reference['annotated_image']}"
+                    ),
+                    "ssim_heatmap": (
+                        f"/analysis/event_{event_id}/{reference['ssim_heatmap']}"
+                    ),
+                    "edge_difference": (
+                        f"/analysis/event_{event_id}/{reference['edge_difference_image']}"
+                    ),
+                    "original_ela": (
+                        f"/analysis/event_{event_id}/{analysis['ela_comparison']['original_ela_image']}"
+                    ),
+                    "uploaded_ela": (
+                        f"/analysis/event_{event_id}/{analysis['ela_comparison']['modified_ela_image']}"
+                    ),
+                }
+
+                checks = {
+                    "analysis_type": analysis_type,
+                    "reference_available": True,
+                    "reference_comparison": reference,
+                    "ocr_comparison": analysis["ocr_comparison"],
+                    "noise_comparison": analysis["noise_comparison"],
+                    "ela_comparison": analysis["ela_comparison"],
+                    "metadata_analysis": analysis["metadata_analysis"],
+                    "analysis_images": analysis_images,
+                    "limitations": analysis["limitations"],
+                }
+
+            else:
+                analysis = analyze_single_screenshot(
+                    image_path=claim.screenshot_path,
+                    output_dir=analysis_dir,
+                )
+                analysis_type = "single_image_forensics"
+                single_count += 1
+
+                reference_note = (
+                    "A reference filename was listed in screenshot_pairs.csv, "
+                    "but its image was not found in uploads/screenshots/real_ss."
+                    if original_name
+                    else "No genuine reference pair is configured for this uploaded filename."
+                )
+
+                checks = {
+                    "analysis_type": analysis_type,
+                    "reference_available": False,
+                    "reference_note": reference_note,
+                    "metadata_analysis": analysis["metadata_analysis"],
+                    "ela_analysis": analysis["ela_analysis"],
+                    "noise_analysis": analysis["noise_analysis"],
+                    "analysis_images": {
+                        "ela": (
+                            f"/analysis/event_{event_id}/"
+                            f"{analysis['ela_analysis']['output_image']}"
+                        )
+                    },
+                    "limitations": analysis["limitations"],
+                }
 
             results.append({
                 "payment_id": claim.claim_id,
                 "bank_transaction": None,
                 "status": analysis["assessment"],
                 "reasons": analysis["indicators"],
-                "checks": {
-                    "analysis_type": "single_image_forensics",
-
-                    "metadata_analysis": analysis["metadata_analysis"],
-
-                    "ela_analysis": analysis["ela_analysis"],
-
-                    "noise_analysis": analysis["noise_analysis"],
-
-                    # Gemini visual analysis
-                    "vision_analysis": analysis["vision_analysis"],
-
-                    # AI-suggested regions for manual review
-                    "visual_evidence": analysis["visual_evidence"],
-
-                    "limitations": analysis["limitations"]
-                }
+                "checks": checks,
             })
 
         except Exception as error:
             failed.append({
                 "claim_id": claim.claim_id,
                 "filename": claim.screenshot_filename,
-                "error": str(error)
+                "error": str(error),
             })
 
     if not results:
@@ -465,30 +556,31 @@ def analyze_without_statement(event_id: int):
             status_code=500,
             detail={
                 "message": "Could not analyse any screenshots",
-                "failed": failed
+                "failed": failed,
             }
         )
 
     saved_results = save_reconciliation_results(
         event_id=event_id,
-        results=results
+        results=results,
     )
 
-    summary = Counter(
-        result["status"] for result in results
-    )
+    summary = Counter(result["status"] for result in results)
 
     return {
         "event_id": event_id,
         "analysis_type": "screenshot_integrity_analysis",
         "total_claims": len(claims),
         "total_analyzed": len(saved_results),
+        "paired_analyzed": paired_count,
+        "single_image_fallbacks": single_count,
         "failed": failed,
         "summary": dict(summary),
         "message": (
             "Screenshot integrity analysis completed. "
+            "Known reference pairs were compared where available. "
             "No bank statement was used."
-        )
+        ),
     }
 
 
@@ -535,7 +627,10 @@ def reconcile_event_payments(event_id: int):
                 checks = {}
 
             if (
-                checks.get("analysis_type") != "single_image_forensics"
+                checks.get("analysis_type") not in {
+                "single_image_forensics",
+                "paired_image_forensics",
+            }
                 and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
             ):
                 bank_results.append(result)
