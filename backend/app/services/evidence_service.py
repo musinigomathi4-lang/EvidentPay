@@ -337,3 +337,128 @@ def analyze_single_screenshot(image_path, output_dir):
             "A genuine reference image is required for direct comparison."
         ),
     }
+
+def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
+                           max_phash_distance=18, candidate_limit=5):
+    """
+    Find a likely genuine reference by image content, never by filename.
+
+    pHash retrieves visually similar candidates. OCR field agreement then
+    checks whether a candidate plausibly depicts the same payment. A candidate
+    is accepted only when its UTR matches or at least two extracted fields
+    agree. This is reference retrieval, not proof of authenticity.
+    """
+    import imagehash
+    from PIL import Image
+
+    uploaded_path = Path(uploaded_path)
+    reference_dir = Path(reference_dir)
+
+    if not uploaded_path.is_file() or not reference_dir.is_dir():
+        return None
+
+    if uploaded_ocr is None:
+        uploaded_ocr = extract_payment(str(uploaded_path))
+
+    def normalise(value, field):
+        if value is None:
+            return None
+        value = str(value).strip()
+        if not value:
+            return None
+        if field == "amount":
+            digits = re.sub(r"[^0-9]", "", value)
+            return digits or None
+        if field == "utr":
+            return re.sub(r"[^A-Z0-9]", "", value.upper()) or None
+        if field == "transaction_date":
+            return value[:10]
+        if field == "sender_name":
+            return re.sub(r"[^A-Z0-9]", "", value.upper()) or None
+        return value
+
+    fields = ("utr", "amount", "transaction_date", "sender_name")
+
+    try:
+        with Image.open(uploaded_path) as image:
+            uploaded_hash = imagehash.phash(image.convert("RGB"))
+    except Exception:
+        return None
+
+    candidates = []
+    for reference_path in reference_dir.iterdir():
+        if not reference_path.is_file() or reference_path.suffix.lower() not in {
+            ".png", ".jpg", ".jpeg", ".webp"
+        }:
+            continue
+        try:
+            with Image.open(reference_path) as image:
+                reference_hash = imagehash.phash(image.convert("RGB"))
+            distance = int(uploaded_hash - reference_hash)
+            if distance <= max_phash_distance:
+                candidates.append((distance, reference_path))
+        except Exception:
+            continue
+
+    candidates.sort(key=lambda item: item[0])
+    candidates = candidates[:candidate_limit]
+
+    best_match = None
+    for distance, reference_path in candidates:
+        reference_ocr = extract_payment(str(reference_path))
+        matching_fields = []
+        for field in fields:
+            uploaded_value = normalise(uploaded_ocr.get(field), field)
+            reference_value = normalise(reference_ocr.get(field), field)
+            if (
+                uploaded_value
+                and reference_value
+                and uploaded_value == reference_value
+            ):
+                matching_fields.append(field)
+
+        # UTR is a strong transaction-specific identifier. If OCR could not
+        # read it, require agreement on at least two other extracted fields.
+        credible = (
+            "utr" in matching_fields
+            or len(matching_fields) >= 2
+        )
+        if not credible:
+            continue
+
+        candidate = {
+            "path": reference_path,
+            "filename": reference_path.name,
+            "phash_distance": distance,
+            "matching_fields": matching_fields,
+            "matching_field_count": len(matching_fields),
+        }
+        if (
+            best_match is None
+            or candidate["matching_field_count"] > best_match["matching_field_count"]
+            or (
+                candidate["matching_field_count"] == best_match["matching_field_count"]
+                and distance < best_match["phash_distance"]
+            )
+        ):
+            best_match = candidate
+
+    if best_match is None:
+        return {
+            "found": False,
+            "candidate_count": len(candidates),
+            "reason": (
+                "No visually similar reference also had enough matching "
+                "payment fields to establish a credible comparison."
+            ),
+        }
+
+    return {
+        "found": True,
+        "filename": best_match["filename"],
+        "phash_distance": best_match["phash_distance"],
+        "matching_fields": best_match["matching_fields"],
+        "matching_field_count": best_match["matching_field_count"],
+        "candidate_count": len(candidates),
+        "path": best_match["path"],
+    }
