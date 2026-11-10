@@ -339,7 +339,7 @@ def analyze_single_screenshot(image_path, output_dir):
     }
 
 def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
-                           max_phash_distance=18, candidate_limit=5):
+                           max_phash_distance=18, candidate_limit=50):
     """
     Find a likely genuine reference by image content, never by filename.
 
