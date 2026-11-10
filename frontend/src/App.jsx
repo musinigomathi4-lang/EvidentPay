@@ -45,6 +45,56 @@ function StatusTag({ value }) {
   return <span className={"status-tag " + statusTone(value)}><i />{String(value || "Pending").replaceAll("_", " ")}</span>;
 }
 
+function EvidenceDetails({ result }) {
+  const checks = result.checks || {};
+  const paired = checks.analysis_type === "paired_image_forensics";
+  const comparison = checks.reference_comparison || {};
+  const ocr = checks.ocr_comparison?.comparisons || {};
+  const images = checks.analysis_images || {};
+
+  return (
+    <article className="evidence-card" key={result.result_id}>
+      <div className="evidence-card-heading">
+        <div>
+          <span className="eyebrow">{paired ? "REFERENCE-BASED COMPARISON" : "SINGLE-IMAGE FALLBACK"}</span>
+          <h3>{result.screenshot_filename || "Screenshot claim"}</h3>
+        </div>
+        <StatusTag value={result.status} />
+      </div>
+      {paired ? <>
+        <div className="evidence-metrics">
+          <div><span>pHASH DISTANCE</span><strong>{comparison.phash_distance ?? "—"}</strong></div>
+          <div><span>CHANGED PIXELS</span><strong>{comparison.changed_pixel_percent ?? "—"}%</strong></div>
+          <div><span>EDGE DIFFERENCE</span><strong>{comparison.edge_difference_percent ?? "—"}%</strong></div>
+          <div><span>CHANGED REGIONS</span><strong>{comparison.regions_detected ?? "—"}</strong></div>
+        </div>
+        <div className="evidence-ocr">
+          <strong>OCR field comparison</strong>
+          <div className="evidence-ocr-grid">
+            {Object.entries(ocr).map(([field, item]) => (
+              <div key={field}>
+                <span>{item.label || field}</span>
+                <b className={item.matches === false ? "different" : item.matches === true ? "same" : ""}>{item.status || "NOT_COMPARABLE"}</b>
+                <small>Reference: {item.original_value ?? "Not read"}</small>
+                <small>Uploaded: {item.modified_value ?? "Not read"}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </> : <p className="evidence-note">{checks.reference_note || "No genuine reference was available for this screenshot."}</p>}
+      <div className="evidence-images">
+        {Object.entries(images).map(([label, path]) => (
+          <a href={API + path} target="_blank" rel="noreferrer" key={label}>
+            <img src={API + path} alt={label.replaceAll("_", " ")} loading="lazy" />
+            <span>{label.replaceAll("_", " ")}</span>
+          </a>
+        ))}
+      </div>
+      {checks.limitations && <p className="evidence-note">{checks.limitations}</p>}
+    </article>
+  );
+}
+
 function App() {
   const [page, setPage] = useState("overview");
   const [events, setEvents] = useState([]);
@@ -109,7 +159,7 @@ function App() {
   const processedEvents = events.filter((event) => Number(event.total_results || 0) > 0).length;
   const matchedCount = results.filter((item) => String(item.status).toLowerCase() === "matched").length;
   const attentionCount = results.filter((item) => statusTone(item.status) === "review" || String(item.status).toLowerCase().includes("unverified")).length;
-  const screenshotOnlyResults = results.some((item) => item.checks?.analysis_type === "single_image_forensics");
+  const screenshotOnlyResults = results.some((item) => ["single_image_forensics", "paired_image_forensics"].includes(item.checks?.analysis_type));
 
   function startNewEvent() {
     setEventName("");
@@ -233,7 +283,7 @@ function App() {
         ...current,
         total_claims: uploadedClaims,
         total_bank_transactions: importedTransactions,
-        total_results: data.total_reconciled || 0
+        total_results: data.total_reconciled || data.total_analyzed || 0
       } : current);
       await loadEvents();
       setNotice(reviewMode === "bank"
@@ -390,6 +440,10 @@ function App() {
           <section className="report-section"><div className="section-heading"><div><span className="eyebrow">{screenshotOnlyResults ? "SCREENSHOT EVIDENCE REVIEW" : "BANK-LED VERIFICATION"}</span><h2>{screenshotOnlyResults ? "Image assessment results" : "Reconciliation results"}</h2><p>{screenshotOnlyResults ? "Image metadata and visual indicators only. No bank credit was checked; these results do not establish authenticity." : "Claims compared with recipient-side incoming credits."}</p></div><button className="icon-action" onClick={()=>loadEventData(selectedEvent)} aria-label="Refresh results"><RefreshCw size={17}/></button></div>
             {results.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr>{screenshotOnlyResults ? <><th>SCREENSHOT</th><th>ASSESSMENT</th><th>INDICATORS</th><th>BANK STATUS</th></> : <><th>SCREENSHOT</th><th>CLAIMED</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></>}</tr></thead><tbody>{results.map(result=><tr key={result.result_id}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td>{screenshotOnlyResults ? <><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"No clear editing indicators detected"}</td><td>Not checked</td></> : <><td>{money(result.screenshot_amount)}</td><td className="mono">{result.screenshot_utr||"—"}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"—"}</td></>}</tr>)}</tbody></table></div> : <div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No verification results yet.</h3><p>Upload the evidence and choose a verification mode to continue.</p><button className="lime-button" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
           </section>
+          {screenshotOnlyResults && results.length > 0 && <section className="report-section evidence-results-section">
+            <div className="section-heading"><div><span className="eyebrow">VISUAL FORENSIC OUTPUT</span><h2>Image comparison evidence</h2><p>Reference-based comparisons use the genuine image pairs available in the project dataset. Single-image fallbacks cannot establish authenticity.</p></div></div>
+            <div className="evidence-card-list">{results.map((result) => <EvidenceDetails result={result} key={result.result_id} />)}</div>
+          </section>}
           <section className="report-section"><div className="section-heading"><div><span className="eyebrow">OCR OUTPUT</span><h2>Extracted claims <span className="inline-count">{claims.length}</span></h2><p>Details read from the submitted payment screenshots.</p></div></div>
             {claims.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>TRANSACTION DATE</th><th>SENDER</th><th>EXTRACTION</th></tr></thead><tbody>{claims.map(claim=><tr key={claim.claim_id}><td>{claim.screenshot_filename}</td><td>{money(claim.amount)}</td><td className="mono">{claim.utr||"—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name||"—"}</td><td><StatusTag value={claim.needs_review?"Needs review":"Extracted"}/></td></tr>)}</tbody></table></div> : <div className="empty-state compact">No screenshots have been uploaded for this event.</div>}
           </section>
