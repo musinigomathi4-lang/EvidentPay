@@ -35,9 +35,9 @@ def _normalise(value, field):
     return value
 
 
-def _compare_ocr_fields(original_path, modified_path):
-    original = extract_payment(str(original_path))
-    modified = extract_payment(str(modified_path))
+def _compare_ocr_fields(original_path, modified_path, original_ocr=None, modified_ocr=None):
+    original = original_ocr or extract_payment(str(original_path))
+    modified = modified_ocr or extract_payment(str(modified_path))
 
     fields = {
         "amount": "Amount",
@@ -89,7 +89,7 @@ def _compare_ocr_fields(original_path, modified_path):
     }
 
 
-def analyze_paired_screenshot(original_path, modified_path, output_dir):
+def analyze_paired_screenshot(original_path, modified_path, output_dir, original_ocr=None, modified_ocr=None):
     """
     Compare an uploaded screenshot with its known genuine reference.
 
@@ -123,6 +123,8 @@ def analyze_paired_screenshot(original_path, modified_path, output_dir):
     ocr_comparison = _compare_ocr_fields(
         original_path,
         modified_path,
+        original_ocr=original_ocr,
+        modified_ocr=modified_ocr,
     )
 
     indicators.extend(ocr_comparison["mismatches"])
@@ -338,8 +340,11 @@ def analyze_single_screenshot(image_path, output_dir):
         ),
     }
 
+_REFERENCE_ANALYSIS_CACHE = {}
+
+
 def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
-                           max_phash_distance=18, candidate_limit=50):
+                           max_phash_distance=18, candidate_limit=5):
     """
     Find a likely genuine reference by image content, never by filename.
 
@@ -392,8 +397,20 @@ def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
         }:
             continue
         try:
-            with Image.open(reference_path) as image:
-                reference_hash = imagehash.phash(image.convert("RGB"))
+            stat = reference_path.stat()
+            cache_key = str(reference_path.resolve())
+            signature = (stat.st_mtime_ns, stat.st_size)
+            cached = _REFERENCE_ANALYSIS_CACHE.get(cache_key)
+            if cached and cached["signature"] == signature:
+                reference_hash = cached["phash"]
+            else:
+                with Image.open(reference_path) as image:
+                    reference_hash = imagehash.phash(image.convert("RGB"))
+                _REFERENCE_ANALYSIS_CACHE[cache_key] = {
+                    "signature": signature,
+                    "phash": reference_hash,
+                    "ocr": None,
+                }
             distance = int(uploaded_hash - reference_hash)
             if distance <= max_phash_distance:
                 candidates.append((distance, reference_path))
@@ -405,7 +422,11 @@ def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
 
     best_match = None
     for distance, reference_path in candidates:
-        reference_ocr = extract_payment(str(reference_path))
+        cache_key = str(reference_path.resolve())
+        cached = _REFERENCE_ANALYSIS_CACHE[cache_key]
+        if cached["ocr"] is None:
+            cached["ocr"] = extract_payment(str(reference_path))
+        reference_ocr = cached["ocr"]
         matching_fields = []
         for field in fields:
             uploaded_value = normalise(uploaded_ocr.get(field), field)
@@ -432,6 +453,10 @@ def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
             "phash_distance": distance,
             "matching_fields": matching_fields,
             "matching_field_count": len(matching_fields),
+            "reference_ocr": {
+                field: reference_ocr.get(field)
+                for field in ("amount", "utr", "transaction_date", "sender_name")
+            },
         }
         if (
             best_match is None
@@ -460,5 +485,6 @@ def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
         "matching_fields": best_match["matching_fields"],
         "matching_field_count": best_match["matching_field_count"],
         "candidate_count": len(candidates),
+        "reference_ocr": best_match["reference_ocr"],
         "path": best_match["path"],
     }
