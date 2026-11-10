@@ -454,10 +454,13 @@ def analyze_without_statement(event_id: int):
 
             if reference_match and reference_match.get("found"):
                 reference_path = reference_match.pop("path")
+                reference_ocr = reference_match.pop("reference_ocr", None)
                 analysis = analyze_paired_screenshot(
                     original_path=reference_path,
                     modified_path=claim.screenshot_path,
                     output_dir=analysis_dir,
+                    original_ocr=reference_ocr,
+                    modified_ocr=uploaded_ocr,
                 )
                 analysis_type = "paired_image_forensics"
                 paired_count += 1
