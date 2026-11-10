@@ -1,15 +1,18 @@
-
+import csv
 import json
 import shutil
 
 from pathlib import Path
 from uuid import uuid4
 from collections import Counter
-import hashlib
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from app.services.evidence_service import analyze_single_screenshot
+
+from app.services.evidence_service import (
+    analyze_single_screenshot,
+    analyze_paired_screenshot,
+)
 from app.database.database_operations import delete_screenshot_analysis_results
 from app.database.database_operations import (
     create_event,
@@ -221,7 +224,7 @@ def retrieve_payment_claims(event_id: int):
 
 
 # --------------------------------------------------
-# 4. UPLOAD BANK STATEMENT (CSV)
+# 4. UPLOAD BANK STATEMENT (CSV / PDF)
 # --------------------------------------------------
 
 @router.post("/{event_id}/statement")
@@ -246,7 +249,6 @@ def upload_bank_statement(
             detail="Upload a CSV or PDF bank statement"
         )
 
-    # Prevent duplicate imports for the same event.
     existing_transactions = get_bank_transactions(event_id)
 
     if existing_transactions:
@@ -279,7 +281,6 @@ def upload_bank_statement(
                 detail="Statement exceeds the 20 MB limit"
             )
 
-        # Parse CSV using the existing statement service.
         transactions = (
             load_statement_pdf(str(saved_path))
             if extension == ".pdf"
@@ -305,10 +306,9 @@ def upload_bank_statement(
         if not usable_transactions:
             raise HTTPException(
                 status_code=400,
-                detail="Could not extract usable transaction data from this CSV"
+                detail="Could not extract usable transaction data from this statement"
             )
 
-        # Save normalized transactions into SQLite.
         saved_transactions = save_bank_transactions(
             event_id=event_id,
             transactions=transactions,
@@ -387,14 +387,16 @@ def analyze_without_statement(event_id: int):
 
     existing_results = get_reconciliation_results(event_id)
 
-    # Screenshot-only analysis may be rerun, but must never erase bank results.
+    # Never allow screenshot-only analysis to erase bank results.
     if existing_results:
         bank_results = []
+
         for result in existing_results:
             try:
                 checks = json.loads(result.checks_json or "{}")
             except (TypeError, ValueError):
                 checks = {}
+
             if (
                 checks.get("analysis_type") != "single_image_forensics"
                 and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
@@ -404,7 +406,10 @@ def analyze_without_statement(event_id: int):
         if bank_results:
             raise HTTPException(
                 status_code=409,
-                detail="Bank reconciliation results already exist. Screenshot-only review cannot replace them."
+                detail=(
+                    "Bank reconciliation results already exist. "
+                    "Screenshot-only review cannot replace them."
+                )
             )
 
         delete_screenshot_analysis_results(event_id)
@@ -431,9 +436,19 @@ def analyze_without_statement(event_id: int):
                 "reasons": analysis["indicators"],
                 "checks": {
                     "analysis_type": "single_image_forensics",
+
                     "metadata_analysis": analysis["metadata_analysis"],
+
                     "ela_analysis": analysis["ela_analysis"],
+
                     "noise_analysis": analysis["noise_analysis"],
+
+                    # Gemini visual analysis
+                    "vision_analysis": analysis["vision_analysis"],
+
+                    # AI-suggested regions for manual review
+                    "visual_evidence": analysis["visual_evidence"],
+
                     "limitations": analysis["limitations"]
                 }
             })
@@ -476,6 +491,7 @@ def analyze_without_statement(event_id: int):
         )
     }
 
+
 # --------------------------------------------------
 # 5. RECONCILE PAYMENTS
 # --------------------------------------------------
@@ -511,11 +527,13 @@ def reconcile_event_payments(event_id: int):
 
     if existing_results:
         bank_results = []
+
         for result in existing_results:
             try:
                 checks = json.loads(result.checks_json or "{}")
             except (TypeError, ValueError):
                 checks = {}
+
             if (
                 checks.get("analysis_type") != "single_image_forensics"
                 and result.status != "UNVERIFIED_NO_BANK_STATEMENT"
@@ -528,16 +546,14 @@ def reconcile_event_payments(event_id: int):
                 detail="This event already has bank reconciliation results"
             )
 
-        # A bank statement is stronger evidence; replace screenshot-only results.
+        # Bank reconciliation replaces screenshot-only results.
         delete_screenshot_analysis_results(event_id)
 
-    # Existing deterministic matching logic.
     results = match_payments(
         payments=payments,
         transactions=transactions
     )
 
-    # Persist results in SQLite.
     saved_results = save_reconciliation_results(
         event_id=event_id,
         results=results
@@ -632,17 +648,21 @@ def retrieve_reconciliation_results(event_id: int):
                         "transaction_id": bank_map[
                             result.bank_transaction_id
                         ].bank_transaction_id,
+
                         "statement_row": bank_map[
                             result.bank_transaction_id
                         ].statement_row,
+
                         "utr": bank_map[
                             result.bank_transaction_id
                         ].utr,
+
                         "credit": str(
                             bank_map[
                                 result.bank_transaction_id
                             ].credit
                         ),
+
                         "date": (
                             bank_map[
                                 result.bank_transaction_id
