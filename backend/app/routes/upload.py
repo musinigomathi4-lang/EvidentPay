@@ -1,4 +1,3 @@
-import csv
 import json
 import shutil
 
@@ -12,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.services.evidence_service import (
     analyze_single_screenshot,
     analyze_paired_screenshot,
+    find_genuine_reference,
 )
 from app.database.database_operations import delete_screenshot_analysis_results
 from app.database.database_operations import (
@@ -36,7 +36,6 @@ router = APIRouter(prefix="/api/events", tags=["Events"])
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_DIR = BACKEND_DIR.parent
-PAIR_CSV_PATH = PROJECT_DIR / "data" / "screenshot_pairs.csv"
 REFERENCE_SCREENSHOT_DIR = PROJECT_DIR / "uploads" / "screenshots" / "real_ss"
 
 SCREENSHOT_DIR = BACKEND_DIR / "uploads" / "screenshots"
@@ -48,26 +47,6 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
 MAX_STATEMENT_SIZE = 20 * 1024 * 1024
 
-
-def _load_screenshot_pairs():
-    """Load modified-upload -> genuine-reference filenames from the project CSV."""
-    if not PAIR_CSV_PATH.is_file():
-        return {}
-
-    pairs = {}
-    with PAIR_CSV_PATH.open("r", encoding="utf-8-sig", newline="") as source:
-        for row in csv.DictReader(source):
-            original_name = Path(
-                row.get("original_filename", "")
-            ).name
-            modified_name = Path(
-                row.get("modified_filename", "")
-            ).name
-
-            if original_name and modified_name:
-                pairs[modified_name.casefold()] = original_name
-
-    return pairs
 
 
 class EventCreateRequest(BaseModel):
@@ -448,7 +427,6 @@ def analyze_without_statement(event_id: int):
     )
     analysis_dir.mkdir(parents=True, exist_ok=True)
 
-    screenshot_pairs = _load_screenshot_pairs()
     results = []
     failed = []
     paired_count = 0
@@ -456,16 +434,26 @@ def analyze_without_statement(event_id: int):
 
     for claim in claims:
         try:
-            uploaded_name = Path(
-                claim.screenshot_filename or claim.screenshot_path
-            ).name
-            original_name = screenshot_pairs.get(uploaded_name.casefold())
-            reference_path = (
-                REFERENCE_SCREENSHOT_DIR / original_name
-                if original_name else None
+            uploaded_ocr = {
+                "amount": claim.amount,
+                "utr": claim.utr,
+                "transaction_date": (
+                    claim.transaction_date.isoformat()
+                    if claim.transaction_date else None
+                ),
+                "sender_name": claim.sender_name,
+            }
+
+            # Search by visual content and payment-field agreement.
+            # The uploaded filename and screenshot_pairs.csv are not used.
+            reference_match = find_genuine_reference(
+                uploaded_path=claim.screenshot_path,
+                reference_dir=REFERENCE_SCREENSHOT_DIR,
+                uploaded_ocr=uploaded_ocr,
             )
 
-            if reference_path and reference_path.is_file():
+            if reference_match and reference_match.get("found"):
+                reference_path = reference_match.pop("path")
                 analysis = analyze_paired_screenshot(
                     original_path=reference_path,
                     modified_path=claim.screenshot_path,
@@ -496,6 +484,7 @@ def analyze_without_statement(event_id: int):
                 checks = {
                     "analysis_type": analysis_type,
                     "reference_available": True,
+                    "reference_search": reference_match,
                     "reference_comparison": reference,
                     "ocr_comparison": analysis["ocr_comparison"],
                     "noise_comparison": analysis["noise_comparison"],
@@ -513,17 +502,13 @@ def analyze_without_statement(event_id: int):
                 analysis_type = "single_image_forensics"
                 single_count += 1
 
-                reference_note = (
-                    "A reference filename was listed in screenshot_pairs.csv, "
-                    "but its image was not found in uploads/screenshots/real_ss."
-                    if original_name
-                    else "No genuine reference pair is configured for this uploaded filename."
-                )
-
                 checks = {
                     "analysis_type": analysis_type,
                     "reference_available": False,
-                    "reference_note": reference_note,
+                    "reference_search": reference_match or {
+                        "found": False,
+                        "reason": "Reference search could not be completed.",
+                    },
                     "metadata_analysis": analysis["metadata_analysis"],
                     "ela_analysis": analysis["ela_analysis"],
                     "noise_analysis": analysis["noise_analysis"],
@@ -573,16 +558,16 @@ def analyze_without_statement(event_id: int):
         "total_claims": len(claims),
         "total_analyzed": len(saved_results),
         "paired_analyzed": paired_count,
-        "single_image_fallbacks": single_count,
+        "single_image_analyzed": single_count,
         "failed": failed,
         "summary": dict(summary),
         "message": (
-            "Screenshot integrity analysis completed. "
-            "Known reference pairs were compared where available. "
+            "Every uploaded screenshot was analysed. Similar genuine "
+            "references were compared when a credible match was found; "
+            "otherwise independent single-image screening was completed. "
             "No bank statement was used."
         ),
     }
-
 
 # --------------------------------------------------
 # 5. RECONCILE PAYMENTS
