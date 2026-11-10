@@ -49,39 +49,76 @@ function EvidenceDetails({ result }) {
   const checks = result.checks || {};
   const paired = checks.analysis_type === "paired_image_forensics";
   const comparison = checks.reference_comparison || {};
+  const referenceSearch = checks.reference_search || {};
   const ocr = checks.ocr_comparison?.comparisons || {};
   const images = checks.analysis_images || {};
+  const metadata = checks.metadata_analysis || {};
+  const noise = checks.noise_analysis || {};
+  const reasons = result.reasons || [];
+  const formatValue = (value) => value === null || value === undefined || value === "" ? "—" :
+    Array.isArray(value) ? value.join(" × ") : typeof value === "object" ? JSON.stringify(value) : String(value);
 
   return (
     <article className="evidence-card" key={result.result_id}>
       <div className="evidence-card-heading">
         <div>
-          <span className="eyebrow">{paired ? "REFERENCE-BASED COMPARISON" : "SINGLE-IMAGE FALLBACK"}</span>
+          <span className="eyebrow">{paired ? "REFERENCE COMPARISON" : "INDEPENDENT IMAGE SCREENING"}</span>
           <h3>{result.screenshot_filename || "Screenshot claim"}</h3>
         </div>
         <StatusTag value={result.status} />
       </div>
+
+      <div className={"reference-banner " + (paired ? "reference-found" : "reference-missing")}>
+        <div className="reference-banner-icon">{paired ? <CheckCircle2 size={18}/> : <Search size={18}/>}</div>
+        <div>
+          <strong>{paired ? "A likely genuine reference was found" : "No credible reference was found"}</strong>
+          <p>{paired
+            ? "The uploaded image was compared with " + (referenceSearch.filename || comparison.original_filename || "a reference image") + "."
+            : (referenceSearch.reason || "This screenshot was screened on its own. Direct image comparison was not possible.")}</p>
+          <small>{referenceSearch.candidate_count ?? 0} visual candidate(s) shortlisted</small>
+        </div>
+      </div>
+
       {paired ? <>
+        <div className="evidence-subheading"><strong>Image comparison</strong><span>Signals to support manual review — not proof by themselves</span></div>
         <div className="evidence-metrics">
-          <div><span>pHASH DISTANCE</span><strong>{comparison.phash_distance ?? "—"}</strong></div>
-          <div><span>CHANGED PIXELS</span><strong>{comparison.changed_pixel_percent ?? "—"}%</strong></div>
-          <div><span>EDGE DIFFERENCE</span><strong>{comparison.edge_difference_percent ?? "—"}%</strong></div>
-          <div><span>CHANGED REGIONS</span><strong>{comparison.regions_detected ?? "—"}</strong></div>
+          <div><span>pHASH DISTANCE</span><strong>{comparison.phash_distance ?? "—"}</strong><small>Lower usually means more visually similar</small></div>
+          <div><span>CHANGED PIXELS</span><strong>{comparison.changed_pixel_percent ?? "—"}%</strong><small>Pixels differing after alignment</small></div>
+          <div><span>EDGE DIFFERENCE</span><strong>{comparison.edge_difference_percent ?? "—"}%</strong><small>Difference in detected boundaries</small></div>
+          <div><span>CHANGED REGIONS</span><strong>{comparison.regions_detected ?? "—"}</strong><small>Local areas marked for inspection</small></div>
         </div>
         <div className="evidence-ocr">
-          <strong>OCR field comparison</strong>
+          <div className="evidence-subheading"><strong>Payment field comparison</strong><span>Text read from both images</span></div>
           <div className="evidence-ocr-grid">
             {Object.entries(ocr).map(([field, item]) => (
               <div key={field}>
                 <span>{item.label || field}</span>
-                <b className={item.matches === false ? "different" : item.matches === true ? "same" : ""}>{item.status || "NOT_COMPARABLE"}</b>
+                <b className={item.matches === false ? "different" : item.matches === true ? "same" : ""}>{(item.status || "NOT_COMPARABLE").replaceAll("_", " ")}</b>
                 <small>Reference: {item.original_value ?? "Not read"}</small>
                 <small>Uploaded: {item.modified_value ?? "Not read"}</small>
               </div>
             ))}
           </div>
         </div>
-      </> : <p className="evidence-note">{checks.reference_note || "No genuine reference was available for this screenshot."}</p>}
+      </> : <>
+        <div className="evidence-subheading"><strong>Single-image checks</strong><span>These checks cannot confirm whether editing occurred</span></div>
+        <div className="evidence-metrics">
+          <div><span>ELA MEAN DIFFERENCE</span><strong>{checks.ela_analysis?.mean_difference ?? "—"}</strong><small>Recompression difference signal</small></div>
+          <div><span>ELA MAX DIFFERENCE</span><strong>{checks.ela_analysis?.max_difference ?? "—"}</strong><small>Highest local difference signal</small></div>
+          <div><span>IMAGE FORMAT</span><strong>{metadata.format || "—"}</strong><small>{formatValue(metadata.dimensions)}</small></div>
+          <div><span>EMBEDDED SOFTWARE</span><strong>{metadata.software || "Not found"}</strong><small>{(metadata.detected_editors || []).length ? "Editor keyword detected" : "No editor keyword detected"}</small></div>
+        </div>
+        {Object.keys(noise).length > 0 && <div className="noise-summary">
+          <strong>Noise consistency measurements</strong>
+          <div>{Object.entries(noise).map(([key, value]) => <div key={key}><span>{key.replaceAll("_", " ")}</span><b>{formatValue(value)}</b></div>)}</div>
+        </div>}
+      </>}
+
+      {reasons.length > 0 && <div className="indicator-list">
+        <strong>Why this image was flagged</strong>
+        <ul>{reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>
+      </div>}
+
       <div className="evidence-images">
         {Object.entries(images).map(([label, path]) => (
           <a href={API + path} target="_blank" rel="noreferrer" key={label}>
@@ -90,6 +127,7 @@ function EvidenceDetails({ result }) {
           </a>
         ))}
       </div>
+      <p className="evidence-disclaimer">Important: screenshot analysis can identify differences and suspicious signals, but it cannot prove that a payment was received. A matching incoming bank credit is still required to confirm payment.</p>
       {checks.limitations && <p className="evidence-note">{checks.limitations}</p>}
     </article>
   );
@@ -441,7 +479,7 @@ function App() {
             {results.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr>{screenshotOnlyResults ? <><th>SCREENSHOT</th><th>ASSESSMENT</th><th>INDICATORS</th><th>BANK STATUS</th></> : <><th>SCREENSHOT</th><th>CLAIMED</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></>}</tr></thead><tbody>{results.map(result=><tr key={result.result_id}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td>{screenshotOnlyResults ? <><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"No clear editing indicators detected"}</td><td>Not checked</td></> : <><td>{money(result.screenshot_amount)}</td><td className="mono">{result.screenshot_utr||"—"}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"—"}</td></>}</tr>)}</tbody></table></div> : <div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No verification results yet.</h3><p>Upload the evidence and choose a verification mode to continue.</p><button className="lime-button" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
           </section>
           {screenshotOnlyResults && results.length > 0 && <section className="report-section evidence-results-section">
-            <div className="section-heading"><div><span className="eyebrow">VISUAL FORENSIC OUTPUT</span><h2>Image comparison evidence</h2><p>Reference-based comparisons use the genuine image pairs available in the project dataset. Single-image fallbacks cannot establish authenticity.</p></div></div>
+            <div className="section-heading"><div><span className="eyebrow">VISUAL FORENSIC OUTPUT</span><h2>Screenshot analysis details</h2><p>Each image is either compared with a likely genuine reference or screened independently. Findings are review signals, not proof of manipulation.</p></div></div>
             <div className="evidence-card-list">{results.map((result) => <EvidenceDetails result={result} key={result.result_id} />)}</div>
           </section>}
           <section className="report-section"><div className="section-heading"><div><span className="eyebrow">OCR OUTPUT</span><h2>Extracted claims <span className="inline-count">{claims.length}</span></h2><p>Details read from the submitted payment screenshots.</p></div></div>
