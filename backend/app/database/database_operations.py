@@ -460,7 +460,10 @@ def delete_screenshot_analysis_results(event_id):
                 checks = json.loads(result.checks_json or "{}")
             except (TypeError, ValueError):
                 checks = {}
-            if checks.get("analysis_type") == "single_image_forensics":
+            if checks.get("analysis_type") in {
+                "single_image_forensics",
+                "paired_image_forensics",
+            }:
                 db.delete(result)
                 deleted += 1
             elif result.status == "UNVERIFIED_NO_BANK_STATEMENT":
