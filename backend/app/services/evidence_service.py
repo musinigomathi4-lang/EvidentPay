@@ -26,7 +26,7 @@ def _normalise(value, field):
     if field == "utr":
         return re.sub(r"[^A-Z0-9]", "", value.upper()) or None
 
-    if field == "date":
+    if field in {"date", "transaction_date"}:
         return value[:10]
 
     if field == "sender_name":
