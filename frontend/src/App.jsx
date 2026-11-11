@@ -64,6 +64,7 @@ function App() {
   const [uploadSummary, setUploadSummary] = useState(null);
   const [statementSummary, setStatementSummary] = useState(null);
   const [reviewMode, setReviewMode] = useState("bank");
+  const [activeResult, setActiveResult] = useState(null);
 
   async function loadEvents() {
     setLoading(true);
@@ -83,6 +84,7 @@ function App() {
     setPage("event");
     setClaims([]);
     setResults([]);
+    setActiveResult(null);
     setUploadSummary(null);
     setStatementSummary(null);
     setError("");
@@ -387,12 +389,70 @@ function App() {
           <section className="report-heading"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> Event register</button><div className="report-title-row"><div><span className="eyebrow">EVENT REPORT / EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h2>{selectedEvent.event_name}</h2><p>{money(selectedEvent.event_price)} entry fee · {selectedEvent.expected_participant_count ?? "—"} expected · Created {shortDate(selectedEvent.created_at)}</p><div className="expected-total report-expected"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong></div></div><button className="outline-button" onClick={()=>{setPage("new");setNotice("");}}><Upload size={15}/> Open workflow</button></div></section>
           <section className="report-metrics"><div><span>CLAIMS</span><strong>{claims.length}</strong></div><div><span>RECONCILIATION RECORDS</span><strong>{results.length}</strong></div><div><span>CONFIRMED MATCHES</span><strong>{matchedCount}</strong></div><div><span>NEEDS REVIEW</span><strong>{attentionCount}</strong></div></section>
           <section className="report-section"><div className="section-heading"><div><span className="eyebrow">BANK-LED VERIFICATION</span><h2>Reconciliation results</h2><p>Claims compared with recipient-side incoming credits.</p></div><button className="icon-action" onClick={()=>loadEventData(selectedEvent)} aria-label="Refresh results"><RefreshCw size={17}/></button></div>
-            {results.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>SCREENSHOT</th><th>CLAIMED</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></tr></thead><tbody>{results.map(result=><tr key={result.result_id}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td><td>{money(result.screenshot_amount)}</td><td className="mono">{result.screenshot_utr||"—"}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"—"}</td></tr>)}</tbody></table></div> : <div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No reconciliation results yet.</h3><p>Upload the evidence and bank statement, then run the cross-check.</p><button className="lime-button" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
+            {results.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>PAYMENT</th><th>CLAIMED</th><th>BANK CREDIT</th><th>STATUS</th><th></th></tr></thead><tbody>{results.map(result=><tr key={result.result_id} className="result-row-clickable" onClick={()=>setActiveResult(result)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();setActiveResult(result);}}} tabIndex={0} role="button" aria-label={"View verification details for "+(result.screenshot_filename||"claim "+result.claim_id)}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td><td>{money(result.screenshot_amount)}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td className="row-view-link">View details <ArrowUpRight size={14}/></td></tr>)}</tbody></table></div> : <div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No reconciliation results yet.</h3><p>Upload the evidence and bank statement, then run the cross-check.</p><button className="lime-button" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
           </section>
           <section className="report-section"><div className="section-heading"><div><span className="eyebrow">OCR OUTPUT</span><h2>Extracted claims <span className="inline-count">{claims.length}</span></h2><p>Details read from the submitted payment screenshots.</p></div></div>
             {claims.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>TRANSACTION DATE</th><th>SENDER</th><th>EXTRACTION</th></tr></thead><tbody>{claims.map(claim=><tr key={claim.claim_id}><td>{claim.screenshot_filename}</td><td>{money(claim.amount)}</td><td className="mono">{claim.utr||"—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name||"—"}</td><td><StatusTag value={claim.needs_review?"Needs review":"Extracted"}/></td></tr>)}</tbody></table></div> : <div className="empty-state compact">No screenshots have been uploaded for this event.</div>}
           </section>
         </>}
+        {activeResult && (() => {
+          const claim = claims.find(item => item.claim_id === activeResult.claim_id);
+          const checks = activeResult.checks || {};
+          const bank = activeResult.bank_transaction;
+          const checkItems = [
+            ["UTR / transaction ID", checks.utr_matched],
+            ["Amount", checks.amount_matched],
+            ["Transaction date", checks.date_matched],
+            ["Sender name", checks.sender_matched]
+          ];
+          const explanation = activeResult.status === "MATCHED"
+            ? "The available payment details agree with the corresponding incoming bank credit."
+            : (activeResult.reasons || []).join(" · ") || "This payment needs additional review.";
+          return <div className="verification-modal-backdrop" onMouseDown={event => { if(event.target === event.currentTarget) setActiveResult(null); }}>
+            <section className="verification-modal" role="dialog" aria-modal="true" aria-labelledby="verification-modal-title">
+              <div className="verification-modal-head">
+                <div><span className="eyebrow">PAYMENT REVIEW / CLAIM #{activeResult.claim_id}</span><h2 id="verification-modal-title">Verification details</h2></div>
+                <button className="icon-action" onClick={()=>setActiveResult(null)} aria-label="Close verification details"><X size={18}/></button>
+              </div>
+              <div className="verification-modal-status"><StatusTag value={activeResult.status}/><p>{explanation}</p></div>
+              <div className="verification-detail-grid">
+                <section className="verification-detail-card">
+                  <span className="eyebrow">FROM PAYMENT SCREENSHOT</span>
+                  <h3>Claimed details</h3>
+                  <dl>
+                    <div><dt>File</dt><dd>{activeResult.screenshot_filename || claim?.screenshot_filename || "—"}</dd></div>
+                    <div><dt>Amount</dt><dd>{money(claim?.amount ?? activeResult.screenshot_amount)}</dd></div>
+                    <div><dt>UTR</dt><dd className="mono">{claim?.utr || activeResult.screenshot_utr || "—"}</dd></div>
+                    <div><dt>Date</dt><dd>{shortDate(claim?.transaction_date)}</dd></div>
+                    <div><dt>Sender</dt><dd>{claim?.sender_name || "Not extracted"}</dd></div>
+                  </dl>
+                </section>
+                <section className="verification-detail-card">
+                  <span className="eyebrow">FROM BANK STATEMENT</span>
+                  <h3>Recipient-side record</h3>
+                  {bank ? <dl>
+                    <div><dt>Statement row</dt><dd>{bank.statement_row ?? "—"}</dd></div>
+                    <div><dt>Credit received</dt><dd>{money(bank.credit)}</dd></div>
+                    <div><dt>UTR</dt><dd className="mono">{bank.utr || "—"}</dd></div>
+                    <div><dt>Transaction date</dt><dd>{shortDate(bank.date)}</dd></div>
+                    <div><dt>Narration</dt><dd>{bank.description || "Not available"}</dd></div>
+                  </dl> : <p className="no-bank-record">No corresponding bank transaction was linked to this claim.</p>}
+                </section>
+              </div>
+              <section className="verification-checks">
+                <span className="eyebrow">COMPARISON BREAKDOWN</span>
+                <div>{checkItems.map(([label,value])=><div className="verification-check-row" key={label}>
+                  <span>{label}</span><strong className={value === true ? "check-pass" : value === false ? "check-fail" : "check-na"}>{value === true ? "Match" : value === false ? "Does not match" : "Not available"}</strong>
+                </div>)}</div>
+              </section>
+              {(activeResult.reasons || []).length > 0 && <section className="verification-reasons">
+                <span className="eyebrow">SYSTEM NOTES</span>
+                <ul>{activeResult.reasons.map((reason,index)=><li key={index}>{reason.replaceAll("_"," ")}</li>)}</ul>
+              </section>}
+              <div className="verification-modal-foot"><span>Evidence is compared deterministically. A screenshot alone does not confirm receipt.</span><button className="ink-button" onClick={()=>setActiveResult(null)}>Close details <Check size={15}/></button></div>
+            </section>
+          </div>;
+        })()}
         <footer className="site-footer"><span>EVIDENTPAY / 2026</span><span>BUILT AROUND THE RECEIVING ACCOUNT <ShieldCheck size={15}/></span></footer>
       </main>
     </div>
