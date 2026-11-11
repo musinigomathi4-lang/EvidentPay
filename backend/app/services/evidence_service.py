@@ -349,14 +349,16 @@ _REFERENCE_ANALYSIS_CACHE = {}
 
 
 def find_genuine_reference(uploaded_path, reference_dir, uploaded_ocr=None,
-                           max_phash_distance=18, candidate_limit=5):
+                           max_phash_distance=24, candidate_limit=12):
     """
     Find a likely genuine reference by image content, never by filename.
 
     pHash retrieves visually similar candidates. OCR field agreement then
-    checks whether a candidate plausibly depicts the same payment. A candidate
-    is accepted only when its UTR matches or at least two extracted fields
-    agree. This is reference retrieval, not proof of authenticity.
+    checks whether a candidate plausibly depicts the same payment. The search
+    keeps a wider visual shortlist so small edits, recompression and resizing
+    do not eliminate the genuine reference too early. A candidate is accepted
+    only when its UTR matches or at least two extracted fields agree. This is
+    reference retrieval, not proof of authenticity.
     """
     import imagehash
     from PIL import Image
