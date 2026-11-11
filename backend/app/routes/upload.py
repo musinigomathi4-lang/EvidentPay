@@ -626,7 +626,10 @@ def retrieve_reconciliation_results(event_id: int):
                             if bank_map[
                                 result.bank_transaction_id
                             ].transaction_date else None
-                        )
+                        ),
+                        "description": bank_map[
+                            result.bank_transaction_id
+                        ].description
                     }
                     if result.bank_transaction_id in bank_map
                     else None
