@@ -13,7 +13,7 @@ import cv2
 import pytesseract
 
 from .image_service import load_image, amount_digits_image
-from ..utils.helpers import extract_utr
+from ..utils.helpers import extract_labeled_utr
 from ..utils.validators import (
     AMOUNT_RE,
     is_valid_utr,
@@ -207,19 +207,9 @@ def extract_text_fields(img):
 
     flags = []
 
-    # UTR: tolerate common labels and OCR spacing/line-break differences.
-    # Only inspect text following a reference label to avoid false matches.
-    utr_label = re.search(
-        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
-        r"\s*[:#-]?\s*",
-        text,
-        re.I,
-    )
-    utr = None
-    if utr_label:
-        utr = extract_utr(text[utr_label.end():utr_label.end() + 120])
+    # UTR: recover the 12-digit reference next to common UPI/reference labels.
+    utr = extract_labeled_utr(text)
 
-    # Retry with whitespace normalized for OCR output that splits the label.
     if utr is None:
         compact_text = re.sub(r"[ \t]+", " ", text)
         utr_label = re.search(
