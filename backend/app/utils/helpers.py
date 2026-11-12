@@ -45,12 +45,30 @@ def parse_amount(value):
         return None
 
 
+def normalize_utr(value):
+    """Normalize a 12-digit UTR, preserving leading zeroes."""
+    if value is None:
+        return None
+    digits = re.sub(r"[\\s-]", "", str(value).strip())
+    return digits if re.fullmatch(r"\\d{12}", digits) else None
+
+
 def extract_utr(*texts):
-    """First standalone 12-digit number in the given strings (UTRs are text, never int)."""
-    for t in texts:
-        m = _UTR_RE.search(str(t or ""))
-        if m:
-            return m.group()
+    """Extract a 12-digit UTR from statement fields/descriptions."""
+    for value in texts:
+        raw = str(value or "").strip()
+        if not raw:
+            continue
+        # First prefer an uninterrupted 12-digit reference.
+        match = _UTR_RE.search(raw)
+        if match:
+            return match.group()
+        # Bank exports sometimes insert spaces or hyphens in reference values.
+        match = re.search(r"(?<!\\d)(?:\\d[ \\t\\r\\n-]*){11}\\d(?!\\d)", raw)
+        if match:
+            digits = re.sub(r"\\D", "", match.group())
+            if len(digits) == 12:
+                return digits
     return None
 
 
