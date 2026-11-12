@@ -17,6 +17,3 @@ python-dotenv
 pydantic
 
 openai
-pdfplumber
-
-google-genai

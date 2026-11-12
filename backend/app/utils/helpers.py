@@ -45,52 +45,13 @@ def parse_amount(value):
         return None
 
 
-def normalize_utr(value):
-    """Normalize a 12-digit UTR, preserving leading zeroes."""
-    if value is None:
-        return None
-    digits = re.sub(r"[\s-]", "", str(value).strip())
-    return digits if re.fullmatch(r"\d{12}", digits) else None
-
-
 def extract_utr(*texts):
-    """Extract a 12-digit UTR from statement fields/descriptions."""
-    for value in texts:
-        raw = str(value or "").strip()
-        if not raw:
-            continue
-        match = _UTR_RE.search(raw)
-        if match:
-            return match.group()
-        match = re.search(r"(?<!\d)(?:\d[ \t\r\n-]*){11}\d(?!\d)", raw)
-        if match:
-            digits = re.sub(r"\D", "", match.group())
-            if len(digits) == 12:
-                return digits
+    """First standalone 12-digit number in the given strings (UTRs are text, never int)."""
+    for t in texts:
+        m = _UTR_RE.search(str(t or ""))
+        if m:
+            return m.group()
     return None
-
-
-def extract_labeled_utr(text):
-    """Find a UTR near a UPI/reference label in OCR text."""
-    raw = str(text or "")
-    label = re.search(
-        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
-        r"\s*[:#-]?\s*",
-        raw,
-        re.I,
-    )
-    if label:
-        found = extract_utr(raw[label.end():label.end() + 160])
-        if found:
-            return found
-    compact = re.sub(r"[ \t]+", " ", raw)
-    label = re.search(
-        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
-        r"\s*[:#-]?\s*",
-        compact,
-        re.I,
-    )
-    return extract_utr(compact[label.end():label.end() + 160]) if label else None
 
 
 def hamming(a: str, b: str) -> int:

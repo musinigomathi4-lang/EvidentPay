@@ -1,8 +1,4 @@
 Transaction Date,Description,UTR,Credit,Debit,Balance
-01-04-2026,Received from Ashutosh Mishra,645705366842,12500,,
-06-04-2026,Received from Suresh Maddali,609688614522,600,,
-10-04-2026,Received from KESHAM KALAVATHI,242026593859,500,,
-29-04-2026,Received from ramu Potnuru,122335244114,500,,
 02-05-2026,Received from Ashutosh Mishra,648816124351,12500,,
 05-05-2026,Received from Vastra Designer Boutique,612512411794,600,,
 07-05-2026,Received from Madhavi Prudhivi,649378759403,1800,,
@@ -52,3 +48,7 @@ Transaction Date,Description,UTR,Credit,Debit,Balance
 22-09-2026,Received from KAMBALA SURESH,881587335683,5000,,
 22-09-2026,Received from Madhavi Prudhivi,626538302646,390,,
 25-09-2026,Paid to Srilatha Putti,130220317520,,250,
+01-10-2026,Received from Vastra Designer Boutique,627498680051,400,,
+03-10-2026,Paid to Parvathi Valluru,627652131796,,10000,
+07-10-2026,Received from KAMBALA SURESH,764179824915,14000,,
+31-10-2026,Received from MUSINI UPENDRA KUMAR,617193054374,64000,,

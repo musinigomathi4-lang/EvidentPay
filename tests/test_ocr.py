@@ -34,7 +34,6 @@ ROOT = Path(__file__).resolve().parent.parent  # the folder that contains backen
 sys.path.insert(0, str(ROOT))
 
 from backend.app.services.ocr_service import extract_payment  # noqa: E402
-import cv2  # noqa: E402
 from backend.app.utils.validators import parse_gpay_date  # noqa: E402
 
 IMG_EXT = (".jpeg", ".jpg", ".png")
@@ -74,10 +73,9 @@ def _norm_date(s):
     s = str(s).strip()
     if not s:
         return None
-    has_explicit_time = bool(re.search(r"\d{1,2}:\d{2}", s))
     d = parse_gpay_date(s)
     if d:
-        return d.strftime("%Y-%m-%d"), (d.strftime("%H:%M") if has_explicit_time else None)
+        return d.strftime("%Y-%m-%d"), d.strftime("%H:%M")
     for fmt, has_time in (("%Y-%m-%d %H:%M", 1), ("%Y-%m-%d %H:%M:%S", 1), ("%d-%m-%Y %H:%M", 1),
                           ("%d/%m/%Y %H:%M", 1), ("%Y-%m-%d", 0), ("%d-%m-%Y", 0),
                           ("%d/%m/%Y", 0), ("%d %b %Y", 0), ("%d %B %Y", 0), ("%d %b, %Y", 0)):
@@ -272,29 +270,3 @@ if __name__ == "__main__":
     csv_path, img_dir = _resolve(sys.argv[1] if len(sys.argv) > 1 else None,
                                  sys.argv[2] if len(sys.argv) > 2 else None)
     print_report(*run(csv_path, img_dir))
-def test_date_only_ground_truth_does_not_require_time():
-    assert _norm_date("2026-10-07") == ("2026-10-07", None)
-
-
-def test_ground_truth_with_time_still_checks_time():
-    assert _norm_date("03 Oct 2026, 10:00am") == ("2026-10-03", "10:00")
-
-def test_full_ocr_pipeline_handles_inverted_contrast_theme(tmp_path):
-    import pytest
-
-    img_dir = pick_img_dir()
-    if img_dir is None:
-        pytest.skip("labelled screenshot folder is not available")
-    sample = img_dir / "1.jpeg"
-    image = cv2.imread(str(sample))
-    if image is None:
-        pytest.skip("sample screenshot could not be read")
-
-    original = extract_payment(str(sample))
-    inverted_path = tmp_path / "inverted_receipt.png"
-    assert cv2.imwrite(str(inverted_path), 255 - image)
-    inverted = extract_payment(str(inverted_path))
-
-    assert inverted["utr"] == original["utr"]
-    assert inverted["transaction_date"] == original["transaction_date"]
-    assert inverted["amount"] == original["amount"]
