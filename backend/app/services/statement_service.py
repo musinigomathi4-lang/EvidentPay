@@ -27,7 +27,7 @@ def _normalize_rows(rows):
     header = [str(value or "").strip() for value in rows[0]]
     c_date = (_find(header, "txn date", "transaction date", "value date", "posting date")
               or _find(header, "date"))
-    c_utr = _find(header, "utr", "reference", "ref no", "ref.", "ref")
+    c_utr = _find(header, "utr", "upi ref", "upi transaction", "transaction id", "txn id", "reference", "ref no", "ref.", "ref")
     c_desc = _find(header, "description", "narration", "particulars", "remarks", "details")
     c_credit = _find(header, "credit", "deposit", "cr amount", "received")
     c_debit = _find(header, "debit", "withdrawal", "dr amount", "paid")
