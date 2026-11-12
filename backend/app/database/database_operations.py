@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from .connection import SessionLocal
+from ..utils.helpers import extract_utr, extract_labeled_utr
 from .models import (
     Event,
     PaymentClaim,
@@ -183,7 +184,7 @@ def get_payments_for_matching(event_id):
             payments.append({
                 "id": claim.claim_id,
                 "amount": claim.amount,
-                "utr": claim.utr,
+                "utr": claim.utr or extract_labeled_utr(claim.raw_text),
                 "date": claim.transaction_date,
                 "sender_name": claim.sender_name,
                 "flags": json.loads(claim.flags_json or "[]"),
@@ -277,7 +278,7 @@ def get_transactions_for_matching(event_id):
             {
                 "row": txn.statement_row,
                 "date": txn.transaction_date,
-                "utr": txn.utr,
+                "utr": txn.utr or extract_utr(txn.description),
                 "credit": txn.credit,
                 "debit": txn.debit,
                 "description": txn.description or "",
