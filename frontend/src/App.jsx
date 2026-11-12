@@ -36,13 +36,101 @@ function shortDate(value) {
 function statusTone(status) {
   const value = String(status || "").toLowerCase();
   if (value === "matched" || value === "verified") return "verified";
-  if (value.includes("duplicate") || value.includes("review") || value.includes("mismatch") || value.includes("unverified")) return "review";
+  if (value.includes("duplicate") || value.includes("review") || value.includes("mismatch") || value.includes("unverified") || value.includes("potentially_altered")) return "review";
   if (value.includes("outside") || value.includes("not_found") || value === "unmatched") return "pending";
   return "plain";
 }
 
 function StatusTag({ value }) {
   return <span className={"status-tag " + statusTone(value)}><i />{String(value || "Pending").replaceAll("_", " ")}</span>;
+}
+
+function EvidenceDetails({ result }) {
+  const checks = result.checks || {};
+  const paired = checks.analysis_type === "paired_image_forensics";
+  const comparison = checks.reference_comparison || {};
+  const referenceSearch = checks.reference_search || {};
+  const ocr = checks.ocr_comparison?.comparisons || {};
+  const images = checks.analysis_images || {};
+  const metadata = checks.metadata_analysis || {};
+  const noise = checks.noise_analysis || {};
+  const reasons = result.reasons || [];
+  const formatValue = (value) => value === null || value === undefined || value === "" ? "—" :
+    Array.isArray(value) ? value.join(" × ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+
+  return (
+    <article className="evidence-card" key={result.result_id}>
+      <div className="evidence-card-heading">
+        <div>
+          <span className="eyebrow">{paired ? "REFERENCE COMPARISON" : "INDEPENDENT IMAGE SCREENING"}</span>
+          <h3>{result.screenshot_filename || "Screenshot claim"}</h3>
+        </div>
+        <StatusTag value={result.status} />
+      </div>
+
+      <div className={"reference-banner " + (paired ? "reference-found" : "reference-missing")}>
+        <div className="reference-banner-icon">{paired ? <CheckCircle2 size={18}/> : <Search size={18}/>}</div>
+        <div>
+          <strong>{paired ? "A likely genuine reference was found" : "No credible reference was found"}</strong>
+          <p>{paired
+            ? "The uploaded image was compared with " + (referenceSearch.filename || comparison.original_filename || "a reference image") + "."
+            : (referenceSearch.reason || "This screenshot was screened on its own. Direct image comparison was not possible.")}</p>
+          <small>{referenceSearch.candidate_count ?? 0} visual candidate(s) shortlisted</small>
+        </div>
+      </div>
+
+      {paired ? <>
+        <div className="evidence-subheading"><strong>Image comparison</strong><span>Signals to support manual review — not proof by themselves</span></div>
+        <div className="evidence-metrics">
+          <div><span>pHASH DISTANCE</span><strong>{comparison.phash_distance ?? "—"}</strong><small>Lower usually means more visually similar</small></div>
+          <div><span>CHANGED PIXELS</span><strong>{comparison.changed_pixel_percent ?? "—"}%</strong><small>Pixels differing after alignment</small></div>
+          <div><span>EDGE DIFFERENCE</span><strong>{comparison.edge_difference_percent ?? "—"}%</strong><small>Difference in detected boundaries</small></div>
+          <div><span>CHANGED REGIONS</span><strong>{comparison.regions_detected ?? "—"}</strong><small>Local areas marked for inspection</small></div>
+        </div>
+        <div className="evidence-ocr">
+          <div className="evidence-subheading"><strong>Payment field comparison</strong><span>Text read from both images</span></div>
+          <div className="evidence-ocr-grid">
+            {Object.entries(ocr).map(([field, item]) => (
+              <div key={field}>
+                <span>{item.label || field}</span>
+                <b className={item.matches === false ? "different" : item.matches === true ? "same" : ""}>{(item.status || "NOT_COMPARABLE").replaceAll("_", " ")}</b>
+                <small>Reference: {item.original_value ?? "Not read"}</small>
+                <small>Uploaded: {item.modified_value ?? "Not read"}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </> : <>
+        <div className="evidence-subheading"><strong>Single-image checks</strong><span>These checks cannot confirm whether editing occurred</span></div>
+        <div className="evidence-metrics">
+          <div><span>ELA MEAN DIFFERENCE</span><strong>{checks.ela_analysis?.mean_difference ?? "—"}</strong><small>Recompression difference signal</small></div>
+          <div><span>ELA MAX DIFFERENCE</span><strong>{checks.ela_analysis?.max_difference ?? "—"}</strong><small>Highest local difference signal</small></div>
+          <div><span>IMAGE FORMAT</span><strong>{metadata.format || "—"}</strong><small>{formatValue(metadata.dimensions)}</small></div>
+          <div><span>EMBEDDED SOFTWARE</span><strong>{metadata.software || "Not found"}</strong><small>{(metadata.detected_editors || []).length ? "Editor keyword detected" : "No editor keyword detected"}</small></div>
+        </div>
+        {Object.keys(noise).length > 0 && <div className="noise-summary">
+          <strong>Noise consistency measurements</strong>
+          <div>{Object.entries(noise).map(([key, value]) => <div key={key}><span>{key.replaceAll("_", " ")}</span><b>{formatValue(value)}</b></div>)}</div>
+        </div>}
+      </>}
+
+      {reasons.length > 0 && <div className="indicator-list">
+        <strong>Why this image was flagged</strong>
+        <ul>{reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>
+      </div>}
+
+      <div className="evidence-images">
+        {Object.entries(images).map(([label, path]) => (
+          <a href={API + path} target="_blank" rel="noreferrer" key={label}>
+            <img src={API + path} alt={label.replaceAll("_", " ")} loading="lazy" />
+            <span>{label.replaceAll("_", " ")}</span>
+          </a>
+        ))}
+      </div>
+      <p className="evidence-disclaimer">Important: screenshot analysis can identify differences and suspicious signals, but it cannot prove that a payment was received. A matching incoming bank credit is still required to confirm payment.</p>
+      {checks.limitations && <p className="evidence-note">{checks.limitations}</p>}
+    </article>
+  );
 }
 
 function App() {
@@ -64,7 +152,6 @@ function App() {
   const [uploadSummary, setUploadSummary] = useState(null);
   const [statementSummary, setStatementSummary] = useState(null);
   const [reviewMode, setReviewMode] = useState("bank");
-  const [activeResult, setActiveResult] = useState(null);
 
   async function loadEvents() {
     setLoading(true);
@@ -84,7 +171,6 @@ function App() {
     setPage("event");
     setClaims([]);
     setResults([]);
-    setActiveResult(null);
     setUploadSummary(null);
     setStatementSummary(null);
     setError("");
@@ -111,6 +197,7 @@ function App() {
   const processedEvents = events.filter((event) => Number(event.total_results || 0) > 0).length;
   const matchedCount = results.filter((item) => String(item.status).toLowerCase() === "matched").length;
   const attentionCount = results.filter((item) => statusTone(item.status) === "review" || String(item.status).toLowerCase().includes("unverified")).length;
+  const screenshotOnlyResults = results.some((item) => ["single_image_forensics", "paired_image_forensics"].includes(item.checks?.analysis_type));
 
   function startNewEvent() {
     setEventName("");
@@ -234,7 +321,7 @@ function App() {
         ...current,
         total_claims: uploadedClaims,
         total_bank_transactions: importedTransactions,
-        total_results: data.total_reconciled || 0
+        total_results: data.total_reconciled || data.total_analyzed || 0
       } : current);
       await loadEvents();
       setNotice(reviewMode === "bank"
@@ -255,205 +342,58 @@ function App() {
     if (nextPage !== "event" && nextPage !== "new") setSelectedEvent(null);
   }
 
-  const pageTitle = page === "overview" ? "Overview" : page === "events" ? "All events" : page === "new" ? (selectedEvent ? "Verification workspace" : "Create an event") : "Event report";
+  const pageTitle = page === "overview" ? "Overview" : page === "events" ? "Events" : page === "new" ? (selectedEvent ? "Verification" : "New event") : "Event report";
+  const navItem = (id,label,Icon,count) => <button className={"top-nav-link "+(page===id||(id==="events"&&page==="event")?"active":"")} onClick={()=>go(id)}><Icon size={15}/>{label}{count!==undefined&&<small>{count}</small>}</button>;
 
   return (
     <div className="app-shell">
-      <header className="masthead">
-        <button className="wordmark" onClick={() => go("overview")} aria-label="EvidentPay home">
-          <span className="wordmark-symbol"><span /><span /><span /></span>
-          <span>EVIDENT<span className="wordmark-light">PAY</span></span>
-        </button>
-        <nav className="main-nav" aria-label="Main navigation">
-          <button className={page === "overview" ? "selected" : ""} onClick={() => go("overview")}>Overview</button>
-          <button className={page === "events" || page === "event" ? "selected" : ""} onClick={() => go("events")}>Events <span className="nav-count">{events.length}</span></button>
-        </nav>
-        <div className="masthead-right"><span className="connection"><i /> Workspace live</span><button className="create-shortcut" onClick={startNewEvent}><Plus size={16}/> New event</button></div>
+      <header className="global-header">
+        <button className="brand-lockup" onClick={()=>go("overview")}><span className="brand-mark"><Fingerprint size={20}/></span><span><b>EVIDENTPAY</b><small>PAYMENT INTELLIGENCE</small></span></button>
+        <nav className="top-navigation">{navItem("overview","Overview",Wallet)}{navItem("events","Event register",FileSpreadsheet,events.length)}</nav>
+        <div className="header-actions"><span className="live-indicator"><i/> SYSTEM CONNECTED</span><button className="topbar-create" onClick={startNewEvent}><Plus size={15}/> New event</button></div>
       </header>
-
       <main className="page-wrap">
-        <div className="page-meta">
-          <div><span className="eyebrow">EVIDENTPAY / PAYMENT OPERATIONS</span><h1>{pageTitle}</h1></div>
-          <span className="date-mark">RECIPIENT-SIDE VERIFICATION <ArrowDownLeft size={14}/></span>
-        </div>
+        <div className="page-context"><span>WORKSPACE</span><span>/</span><b>{pageTitle}</b><span className="context-spacer"/><span className="context-date">EVIDENCE-LED PAYMENT REVIEW</span></div>
+        {(error||notice)&&<div className={"notice-bar "+(error?"is-error":"is-success")}>{error?<CircleAlert size={17}/>:<CheckCircle2 size={17}/>}<span>{error||notice}</span><button onClick={()=>{setError("");setNotice("");}} aria-label="Dismiss message"><X size={16}/></button></div>}
 
-        {(error || notice) && <div className={"notice-bar " + (error ? "is-error" : "is-success")}>
-          {error ? <CircleAlert size={17}/> : <CheckCircle2 size={17}/>}<span>{error || notice}</span>
-          <button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss message"><X size={16}/></button>
-        </div>}
-
-        {page === "overview" && <>
-          <section className="opening">
-            <div className="opening-copy">
-              <div className="eyebrow lime-label"><span/> THE PAYMENT PAPER TRAIL, MADE CLEAR</div>
-              <h2>Proof is a claim.<br/><em>Credits are the truth.</em></h2>
-              <p>Bring payment screenshots and bank credits into one place. EvidentPay checks what was claimed against what actually arrived.</p>
-              <button className="ink-button" onClick={startNewEvent}>Start a verification <ArrowUpRight size={17}/></button>
-            </div>
-            <div className="opening-art" aria-hidden="true">
-              <div className="receipt receipt-back"><span>UPI / CREDIT</span><b>₹500.00</b><small>TRANSACTION RECEIVED</small><i/><i/><i/></div>
-              <div className="receipt receipt-front"><div className="receipt-top"><span>PAYMENT RECORD</span><Check size={16}/></div><b>₹500.00</b><small>UTR MATCH CONFIRMED</small><div className="receipt-code">EP · 00482 · 2026</div><div className="receipt-stamp"><ShieldCheck size={23}/><span>CHECKED<br/>AGAINST BANK</span></div></div>
-              <div className="art-spark spark-a">✳</div><div className="art-spark spark-b">+</div>
-            </div>
-            <div className="opening-side-note">01 — EVIDENCE FIRST</div>
+        {page==="overview"&&<>
+          <section className="editorial-hero">
+            <div className="hero-copy"><span className="eyebrow">THE EVENT PAYMENT WORKSPACE</span><h1>Proof, not<br/><em>promises.</em></h1><p>Bring payment screenshots and incoming credits into one clear review process. Spot inconsistencies. Keep the evidence visible.</p><button className="primary-action" onClick={startNewEvent}><Plus size={16}/> Start a verification <ArrowUpRight size={15}/></button></div>
+            <div className="hero-art"><div className="hero-index">01 <span>/ EVIDENCE CONTROL</span></div><div className="hero-art-main"><div className="art-ring ring-a"/><div className="art-ring ring-b"/><div className="art-center"><Fingerprint size={54}/><span>TRACE<br/>THE PROOF</span></div><div className="art-tag tag-top">SCREENSHOT<br/>ANALYSIS</div><div className="art-tag tag-bottom">BANK CREDIT<br/>RECONCILIATION</div></div><div className="hero-art-foot"><span>INDEPENDENT SCREENING</span><span>REFERENCE COMPARISON</span><span>TRANSACTION MATCHING</span></div></div>
           </section>
+          <section className="metric-ribbon"><div><span>EVENTS CREATED</span><b>{loading?"—":events.length.toString().padStart(2,"0")}</b></div><div><span>PAYMENT CLAIMS</span><b>{loading?"—":totalClaims.toString().padStart(2,"0")}</b></div><div><span>ANALYSIS RECORDS</span><b>{loading?"—":totalResults.toString().padStart(2,"0")}</b></div><div><span>AWAITING REVIEW</span><b>{loading?"—":events.filter(e=>Number(e.total_results||0)===0).length.toString().padStart(2,"0")}</b></div></section>
+          <section className="overview-lower"><div className="ledger-panel"><div className="section-heading"><div><span className="eyebrow">YOUR WORKSPACE</span><h2>Recent events</h2><p>Jump back into an event or open the full register.</p></div><button className="text-action" onClick={()=>go("events")}>All events <ArrowRight size={15}/></button></div>
+            {loading?<div className="empty-state"><LoaderCircle className="spin" size={22}/> Loading workspace…</div>:events.length===0?<div className="empty-state"><div className="empty-symbol"><Wallet size={24}/></div><h3>Your first event starts here.</h3><p>Create an event to begin reviewing payment evidence.</p><button className="primary-action" onClick={startNewEvent}><Plus size={16}/> Create event</button></div>:<div className="ledger-list"><div className="ledger-head"><span>EVENT</span><span>CREATED</span><span>CLAIMS</span><span>RESULTS</span><span/></div>{events.slice(0,7).map((event,index)=><button className="ledger-row" key={event.event_id} onClick={()=>loadEventData(event)}><span className="ledger-event"><i>{String(index+1).padStart(2,"0")}</i><b>{event.event_name}</b><small>EP-{String(event.event_id).padStart(4,"0")}</small></span><span>{shortDate(event.created_at)}</span><span>{event.total_claims||0}</span><span>{event.total_results||0}</span><ArrowUpRight size={16}/></button>)}</div>}
+          </div><aside className="manifesto-panel"><span className="eyebrow">THE EVIDENCE RULE</span><h2>A screenshot<br/>is a <em>claim.</em></h2><div className="manifesto-divider"/><h2>A bank credit<br/>is <em>confirmation.</em></h2><p>Visual analysis can identify suspicious signals. A matching incoming transaction confirms receipt of funds.</p><span className="manifesto-mark">EP / 01</span></aside></section>
+        </>}
 
-          <section className="metric-strip">
-            <div><span>EVENTS CREATED</span><strong>{loading ? "—" : events.length}</strong><small>Across this workspace</small></div>
-            <div><span>PAYMENT CLAIMS</span><strong>{loading ? "—" : totalClaims}</strong><small>Screenshot records read</small></div>
-            <div><span>BANK COMPARISONS</span><strong>{loading ? "—" : totalResults}</strong><small>Reconciliation records</small></div>
-            <div><span>EVENTS PROCESSED</span><strong>{loading ? "—" : processedEvents}<small className="metric-total"> / {events.length}</small></strong><small>With results available</small></div>
-          </section>
-
-          <section className="overview-bottom">
-            <div className="event-feed">
-              <div className="section-heading"><div><span className="eyebrow">YOUR WORKSPACE</span><h2>Recent events</h2></div><button className="plain-link" onClick={() => go("events")}>See all events <ArrowRight size={15}/></button></div>
-              <div className="feed-list">
-                {loading ? <div className="empty-state"><LoaderCircle className="spin" size={22}/> Gathering event records…</div> :
-                  events.length === 0 ? <div className="empty-state"><div className="empty-symbol"><Wallet size={25}/></div><h3>Nothing on the books yet.</h3><p>Create an event and the payment trail starts here.</p><button className="lime-button" onClick={startNewEvent}><Plus size={16}/> Create your first event</button></div> :
-                  events.slice(0,5).map((event,index) => <button className="feed-row" key={event.event_id} onClick={() => loadEventData(event)}>
-                    <span className="feed-index">{String(index + 1).padStart(2,"0")}</span><span className="feed-monogram">{(event.event_name || "E").slice(0,1).toUpperCase()}</span>
-                    <span className="feed-name"><strong>{event.event_name}</strong><small>EP-{String(event.event_id).padStart(4,"0")} · {shortDate(event.created_at)}</small></span>
-                    <span className="feed-value"><strong>{event.total_claims || 0}</strong><small>CLAIMS</small></span><span className="feed-value"><strong>{event.total_results || 0}</strong><small>CHECKS</small></span><ArrowUpRight className="feed-arrow" size={17}/>
-                  </button>)}
-              </div>
-            </div>
-            <aside className="principle-note">
-              <div className="principle-icon"><Fingerprint size={23}/></div>
-              <span className="eyebrow">THE EVIDENTPAY RULE</span>
-              <h3>Evidence over appearance.</h3>
-              <p>A screenshot tells us what someone says they paid. A matching incoming bank credit is what confirms it.</p>
-              <div className="principle-foot"><ShieldCheck size={16}/> SCREENSHOTS ARE CLAIMS. BANK CREDITS CONFIRM.</div>
-            </aside>
+        {page==="events"&&<>
+          <section className="page-title-row"><div><span className="eyebrow">WORKSPACE / REGISTER</span><h1>Event register<span className="title-period">.</span></h1><p>A running record of every event and its verification activity.</p></div><button className="primary-action" onClick={startNewEvent}><Plus size={16}/> Create event</button></section>
+          <section className="ledger-panel register-ledger"><div className="register-toolbar"><div><b>{events.length.toString().padStart(2,"0")}</b><span>EVENTS ON FILE</span></div><label className="search-field"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Find an event or ID"/></label></div>
+          {loading?<div className="empty-state"><LoaderCircle className="spin" size={22}/> Loading events…</div>:filteredEvents.length===0?<div className="empty-state"><h3>No events found.</h3><p>Try a different search or create a new event.</p><button className="primary-action" onClick={startNewEvent}><Plus size={16}/> New event</button></div>:<div className="ledger-list"><div className="ledger-head register-head"><span>EVENT</span><span>ENTRY FEE</span><span>EXPECTED</span><span>CLAIMS</span><span>STATUS</span></div>{filteredEvents.map(event=><button className="ledger-row register-row" key={event.event_id} onClick={()=>loadEventData(event)}><span className="ledger-event"><i>EP-{String(event.event_id).padStart(4,"0")}</i><b>{event.event_name}</b><small>Created {shortDate(event.created_at)}</small></span><span>{money(event.event_price)}</span><span>{event.expected_participant_count??"—"}</span><span>{event.total_claims||0}</span><span><StatusTag value={Number(event.total_results||0)>0?"Processed":"Pending"}/></span></button>)}</div>}
           </section>
         </>}
 
-        {page === "events" && <>
-          <section className="list-intro"><div><span className="eyebrow">THE COMPLETE REGISTER</span><h2>Every event.<br/><em>One clear record.</em></h2></div><p>Open an event to review its claims, imported bank data and reconciliation outcomes.</p></section>
-          <section className="register">
-            <div className="register-head"><div><strong>{events.length.toString().padStart(2,"0")}</strong><span>REGISTERED EVENTS</span></div><label className="search-field"><Search size={17}/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search by event name or ID"/></label></div>
-            {loading ? <div className="empty-state"><LoaderCircle className="spin" size={22}/> Loading events…</div> : filteredEvents.length === 0 ? <div className="empty-state"><h3>No events found.</h3><p>Try another search, or create a new event.</p><button className="lime-button" onClick={startNewEvent}><Plus size={16}/> New event</button></div> :
-              <div className="register-list">{filteredEvents.map((event,index)=><button className="register-row" key={event.event_id} onClick={()=>loadEventData(event)}>
-                <span className="register-number">{String(index+1).padStart(2,"0")}</span><span className="register-event"><strong>{event.event_name}</strong><small>EP-{String(event.event_id).padStart(4,"0")} · {shortDate(event.created_at)}</small></span>
-                <span className="register-detail"><small>ENTRY FEE</small><strong>{money(event.event_price)}</strong></span><span className="register-detail"><small>PARTICIPANTS</small><strong>{event.expected_participant_count ?? "—"}</strong></span><span className="register-detail"><small>CLAIMS / RESULTS</small><strong>{event.total_claims || 0} / {event.total_results || 0}</strong></span><ArrowUpRight size={18}/>
-              </button>)}</div>}
-          </section>
-        </>}
-
-        {page === "new" && <>
-          {!selectedEvent ? <section className="create-layout">
-            <div className="create-story"><span className="eyebrow">A NEW COLLECTION STARTS HERE</span><h2>Set the scene.<br/><em>Then follow the money.</em></h2><p>Give this event a name, set its expected payment amount, and define the participant count. You can add payment evidence next.</p><div className="story-sequence"><div><b>01</b><span>Register the event</span></div><div><b>02</b><span>Collect payment proofs</span></div><div><b>03</b><span>Match incoming credits</span></div></div></div>
-            <form className="create-form" onSubmit={createEvent}>
-              <div className="form-overline"><span>EVENT SETUP</span><span>01 / 03</span></div>
-              <label>What are we collecting for?<input required maxLength="150" placeholder="e.g. TechFest 2026" value={eventName} onChange={e=>setEventName(e.target.value)}/></label>
-              <div className="form-pair"><label>Registration fee per participant (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={e=>setEventPrice(e.target.value)}/></label><label>Expected participants<input required min="1" type="number" value={participants} onChange={e=>setParticipants(e.target.value)}/></label></div>
-              <div className="expected-collection"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money((Number(eventPrice)||0)*(Number(participants)||0))}</strong><small>{participants || 0} participants × {money(eventPrice)}</small></div>
-              <div className="form-hint"><CircleAlert size={16}/> Set the exact amount each participant is expected to pay.</div>
-              <button className="ink-button form-submit" type="submit" disabled={busy==="create"}>{busy==="create" ? <LoaderCircle className="spin" size={17}/> : <Plus size={17}/>} Create event <ArrowRight size={17}/></button>
-            </form>
-          </section> : <section className="verification-layout">
-            <div className="workflow-heading"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> All events</button><span className="eyebrow">EVENT EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h2>{selectedEvent.event_name}</h2><p>{money(selectedEvent.event_price)} per participant · {selectedEvent.expected_participant_count ?? "—"} expected</p><div className="expected-total"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong><small>{selectedEvent.expected_participant_count ?? 0} expected payments</small></div></div>
-            <div className="workflow-steps"><span className="current">01 <b>PAYMENT PROOFS</b></span><i/><span className={selectedEvent.total_bank_transactions || statementSummary ? "current" : ""}>02 <b>BANK RECORD</b></span><i/><span className={results.length ? "current" : ""}>03 <b>RESULT</b></span></div>
-            <div className="verification-summary">
-              <div><span>EXPECTED COLLECTION</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong></div>
-              <div><span>PER PARTICIPANT</span><strong>{money(selectedEvent.event_price)}</strong></div>
-              <div><span>EXPECTED PARTICIPANTS</span><strong>{selectedEvent.expected_participant_count ?? "—"}</strong></div>
-            </div>
-            <div className="upload-columns">
-              <section className="upload-section"><div className="upload-title"><span>01</span><div><span className="eyebrow">PARTICIPANT EVIDENCE</span><h3>Payment screenshots</h3><p>Select all payment proofs together. EvidentPay will read them automatically when you start verification.</p></div></div>
-                <label className="drop-zone"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={e=>setScreenshots(Array.from(e.target.files||[]))}/><div className="drop-icon"><FileImage size={23}/></div><strong>{screenshots.length ? screenshots.length+" file(s) ready" : "Add payment screenshots"}</strong><span>or <u>browse your device</u></span><small>PNG · JPG · WEBP · MULTIPLE FILES</small></label>
-                {screenshots.length>0 && <div className="selected-files">{screenshots.map(file=><div key={file.name}><FileImage size={15}/><span>{file.name}</span><small>{(file.size/1024/1024).toFixed(1)} MB</small></div>)}</div>}
-                {uploadSummary && <div className="upload-result"><CheckCircle2 size={16}/>{uploadSummary.successful} processed · {uploadSummary.failed} failed</div>}
-                <div className="upload-actions"><span>{selectedEvent.total_claims || uploadSummary?.successful || 0} claims already stored</span><span className="file-ready">{screenshots.length ? screenshots.length+" new selected" : "Ready when you are"}</span></div>
-              </section>
-              <section className="upload-section"><div className="upload-title"><span>02</span><div><span className="eyebrow">RECIPIENT ACCOUNT</span><h3>Bank statement</h3><p>Use the account that received the payments. CSV and text-based PDF statements are supported.</p></div></div>
-                <label className="statement-zone"><input type="file" accept=".csv,.pdf,text/csv,application/pdf" onChange={e=>setStatement(e.target.files?.[0]||null)}/><FileSpreadsheet size={27}/><span><strong>{statement ? statement.name : "Choose a bank statement"}</strong><small>{statement ? (statement.size/1024).toFixed(0)+" KB selected" : "CSV or PDF · up to 20 MB"}</small></span><b>Browse</b></label>
-                {statementSummary && <div className="upload-result"><CheckCircle2 size={16}/>{statementSummary.total_transactions} transactions · {statementSummary.credit_transactions} credits imported</div>}
-                <div className="upload-actions"><span>{selectedEvent.total_bank_transactions || statementSummary?.total_transactions || 0} rows already imported</span><span className="file-ready">{statement ? "Statement selected" : "Optional only in screenshot review"}</span></div>
-              </section>
-            </div>
-            <div className="no-statement-choice">
-              <div><span className="eyebrow">DON'T HAVE THE RECIPIENT'S BANK STATEMENT?</span><strong>Run a screenshot-only review instead.</strong><p>We can inspect extracted details and repeated claims, but payments will remain unverified without bank credits.</p></div>
-              <button className={reviewMode==="screenshots"?"choice-active":"choice-button"} onClick={()=>{setReviewMode("screenshots");setStatement(null);}}>Use screenshot-only review</button>
-            </div>
-            <div className="verification-footer">
-              <div className="verification-mode"><span className="eyebrow">VERIFICATION MODE</span><strong>{reviewMode==="bank"?"Bank statement reconciliation":"Screenshot-only · Unverified"}</strong><small>{reviewMode==="bank"?"Screenshots will be compared with incoming credits.":"No bank credit confirmation will be claimed."}</small></div>
-              <button className="ink-button" onClick={runVerification} disabled={busy==="verification"||(!screenshots.length&&!selectedEvent.total_claims)||(reviewMode==="bank"&&!statement&&!selectedEvent.total_bank_transactions)}>{busy==="verification"?<><LoaderCircle className="spin" size={16}/> Processing files & checking records…</>:<><Zap size={16}/> {reviewMode==="bank"?"Verify all uploads":"Run screenshot review"} <ArrowRight size={17}/></>}</button>
-            </div>
-            <div className="trust-line"><ShieldCheck size={17}/> A screenshot is a payment claim. Only a matching recipient-side bank credit confirms receipt.</div>
-            {results.length>0 && <button className="plain-link results-link" onClick={()=>loadEventData(selectedEvent)}>View latest results <ArrowUpRight size={15}/></button>}
+        {page==="new"&&<>
+          {!selectedEvent?<section className="new-event-layout"><div className="new-event-intro"><span className="eyebrow">NEW EVENT / CONFIGURATION</span><h1>Set the<br/><em>ground rules.</em></h1><p>Tell EvidentPay what participants should pay. You can add screenshots and recipient-side bank data once the event is created.</p><div className="step-rail"><span className="step-current">01 <b>Event details</b></span><span>02 <b>Upload evidence</b></span><span>03 <b>Review findings</b></span></div></div><form className="event-form" onSubmit={createEvent}><div className="form-heading"><span className="eyebrow">EVENT PROFILE</span><span className="form-step">STEP 01 / 03</span></div><h2>What are we verifying?</h2><label>Event name<input required maxLength="150" placeholder="e.g. TechFest 2026" value={eventName} onChange={e=>setEventName(e.target.value)}/></label><div className="form-pair"><label>Payment per participant (₹)<input required min="1" type="number" step="0.01" value={eventPrice} onChange={e=>setEventPrice(e.target.value)}/></label><label>Expected participants<input required min="1" type="number" value={participants} onChange={e=>setParticipants(e.target.value)}/></label></div><div className="expected-collection"><span>PROJECTED COLLECTION</span><strong>{money((Number(eventPrice)||0)*(Number(participants)||0))}</strong><small>{participants||0} participants × {money(eventPrice)}</small></div><button className="primary-action wide" type="submit" disabled={busy==="create"}>{busy==="create"?<LoaderCircle className="spin" size={17}/>:<Plus size={17}/>} Create event <ArrowRight size={16}/></button></form></section>:
+          <section className="verification-layout"><div className="verification-title"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> Event register</button><span className="eyebrow">EVENT EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h1>{selectedEvent.event_name}</h1><p>{money(selectedEvent.event_price)} per participant <span>·</span> {selectedEvent.expected_participant_count??"—"} expected</p></div>
+            <div className="upload-columns"><section className="upload-module"><div className="module-heading"><span>01</span><div><span className="eyebrow">PARTICIPANT EVIDENCE</span><h3>Payment screenshots</h3><p>Every image is screened independently. Reference comparison is additional evidence, when available.</p></div></div><label className="drop-zone"><input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" multiple onChange={e=>setScreenshots(Array.from(e.target.files||[]))}/><div className="drop-icon"><FileImage size={23}/></div><strong>{screenshots.length?screenshots.length+" file(s) ready":"Drop screenshots here"}</strong><span>or <u>browse your device</u></span><small>PNG · JPG · WEBP · MULTIPLE FILES</small></label>{screenshots.length>0&&<div className="selected-files">{screenshots.map(file=><div key={file.name}><FileImage size={15}/><span>{file.name}</span><small>{(file.size/1024/1024).toFixed(1)} MB</small></div>)}</div>}{uploadSummary&&<div className="upload-result"><CheckCircle2 size={16}/>{uploadSummary.successful} processed · {uploadSummary.failed} failed</div>}<div className="upload-actions"><span>{selectedEvent.total_claims||uploadSummary?.successful||0} claims stored</span><span>{screenshots.length?screenshots.length+" selected":"Ready to upload"}</span></div></section>
+            <section className="upload-module"><div className="module-heading"><span>02</span><div><span className="eyebrow">RECIPIENT ACCOUNT</span><h3>Bank statement</h3><p>Optional. Add the account that received the payments to reconcile incoming credits.</p></div></div><label className="statement-zone"><input type="file" accept=".csv,.pdf,text/csv,application/pdf" onChange={e=>setStatement(e.target.files?.[0]||null)}/><FileSpreadsheet size={27}/><span><strong>{statement?statement.name:"Choose a bank statement"}</strong><small>{statement?(statement.size/1024).toFixed(0)+" KB selected":"CSV or PDF · up to 20 MB"}</small></span><b>Browse</b></label>{statementSummary&&<div className="upload-result"><CheckCircle2 size={16}/>{statementSummary.total_transactions} transactions · {statementSummary.credit_transactions} credits imported</div>}<div className="upload-actions"><span>{selectedEvent.total_bank_transactions||statementSummary?.total_transactions||0} rows imported</span><span>{statement?"Statement selected":"Optional for image review"}</span></div></section></div>
+            <section className="workflow-choice"><div><span className="eyebrow">ANALYSIS WORKFLOW</span><h3>Choose the checks to run</h3><p>Screenshot screening always runs. Bank reconciliation adds a recipient-side transaction check.</p></div><div className="mode-options"><button className={reviewMode==="screenshots"?"mode-option selected":"mode-option"} onClick={()=>setReviewMode("screenshots")}><Fingerprint size={18}/><span><b>Screenshot analysis</b><small>Review images independently</small></span>{reviewMode==="screenshots"&&<CheckCircle2 size={17}/>}</button><button className={reviewMode==="bank"?"mode-option selected":"mode-option"} onClick={()=>setReviewMode("bank")}><Banknote size={18}/><span><b>Bank reconciliation</b><small>Screen images + match credits</small></span>{reviewMode==="bank"&&<CheckCircle2 size={17}/>}</button></div></section>
+            <div className="run-strip"><div><span className="eyebrow">READY WHEN YOU ARE</span><strong>{reviewMode==="bank"?"Image screening + bank reconciliation":"Independent screenshot screening"}</strong><small>Unmatched or suspicious items remain available for review.</small></div><button className="primary-action" onClick={runVerification} disabled={busy==="verification"||(!screenshots.length&&!selectedEvent.total_claims)||(reviewMode==="bank"&&!statement&&!selectedEvent.total_bank_transactions)}>{busy==="verification"?<><LoaderCircle className="spin" size={16}/> Analysing evidence…</>:<><Zap size={16}/> Run analysis <ArrowRight size={16}/></>}</button></div>
+            {results.length>0&&<button className="text-action results-link" onClick={()=>loadEventData(selectedEvent)}>View latest results <ArrowUpRight size={15}/></button>}
           </section>}
         </>}
 
-        {page === "event" && selectedEvent && <>
-          <section className="report-heading"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> Event register</button><div className="report-title-row"><div><span className="eyebrow">EVENT REPORT / EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h2>{selectedEvent.event_name}</h2><p>{money(selectedEvent.event_price)} entry fee · {selectedEvent.expected_participant_count ?? "—"} expected · Created {shortDate(selectedEvent.created_at)}</p><div className="expected-total report-expected"><span>EXPECTED AMOUNT TO BE RECEIVED</span><strong>{money(Number(selectedEvent.event_price || 0) * Number(selectedEvent.expected_participant_count || 0))}</strong></div></div><button className="outline-button" onClick={()=>{setPage("new");setNotice("");}}><Upload size={15}/> Open workflow</button></div></section>
-          <section className="report-metrics"><div><span>CLAIMS</span><strong>{claims.length}</strong></div><div><span>RECONCILIATION RECORDS</span><strong>{results.length}</strong></div><div><span>CONFIRMED MATCHES</span><strong>{matchedCount}</strong></div><div><span>NEEDS REVIEW</span><strong>{attentionCount}</strong></div></section>
-          <section className="report-section"><div className="section-heading"><div><span className="eyebrow">BANK-LED VERIFICATION</span><h2>Reconciliation results</h2><p>Claims compared with recipient-side incoming credits.</p></div><button className="icon-action" onClick={()=>loadEventData(selectedEvent)} aria-label="Refresh results"><RefreshCw size={17}/></button></div>
-            {results.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>PAYMENT</th><th>CLAIMED</th><th>BANK CREDIT</th><th>STATUS</th><th></th></tr></thead><tbody>{results.map(result=><tr key={result.result_id} className="result-row-clickable" onClick={()=>setActiveResult(result)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();setActiveResult(result);}}} tabIndex={0} role="button" aria-label={"View verification details for "+(result.screenshot_filename||"claim "+result.claim_id)}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td><td>{money(result.screenshot_amount)}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td className="row-view-link">View details <ArrowUpRight size={14}/></td></tr>)}</tbody></table></div> : <div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No reconciliation results yet.</h3><p>Upload the evidence and bank statement, then run the cross-check.</p><button className="lime-button" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
+        {page==="event"&&selectedEvent&&<>
+          <section className="report-masthead"><button className="back-link" onClick={()=>go("events")}><ChevronLeft size={16}/> Event register</button><div className="report-mast-row"><div><span className="eyebrow">EVENT REPORT / EP-{String(selectedEvent.event_id).padStart(4,"0")}</span><h1>{selectedEvent.event_name}<span className="title-period">.</span></h1><p>{money(selectedEvent.event_price)} entry fee · {selectedEvent.expected_participant_count??"—"} expected · Created {shortDate(selectedEvent.created_at)}</p></div><button className="secondary-action" onClick={()=>{setPage("new");setNotice("");}}><Upload size={15}/> Open workflow</button></div><div className="report-stats"><div><small>CLAIMS</small><b>{claims.length}</b></div><div><small>RESULTS</small><b>{results.length}</b></div><div><small>MATCHED CREDITS</small><b>{matchedCount}</b></div><div><small>NEEDS REVIEW</small><b>{attentionCount}</b></div></div></section>
+          <section className="ledger-panel report-section"><div className="section-heading"><div><span className="eyebrow">{screenshotOnlyResults?"SCREENSHOT INTEGRITY REVIEW":"BANK-LED VERIFICATION"}</span><h2>{screenshotOnlyResults?"Screenshot assessments":"Reconciliation results"}</h2><p>Open an item to inspect evidence, extracted fields and review reasons.</p></div><button className="icon-action" onClick={()=>loadEventData(selectedEvent)} aria-label="Refresh results"><RefreshCw size={17}/></button></div>
+          {results.length?<div className="report-table-wrap"><table className="report-table"><thead><tr><th>SCREENSHOT</th>{screenshotOnlyResults?<><th>ASSESSMENT</th><th>FINDINGS</th><th>BANK STATUS</th></>:<><th>CLAIMED</th><th>UTR</th><th>BANK CREDIT</th><th>STATUS</th><th>REASONS</th></>}</tr></thead><tbody>{results.map(result=><tr key={result.result_id}><td><strong>{result.screenshot_filename||"Claim #"+result.claim_id}</strong><small>Claim #{result.claim_id}</small></td>{screenshotOnlyResults?<><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"No clear editing indicators"}</td><td>Not checked</td></>:<><td>{money(result.screenshot_amount)}</td><td className="mono">{result.screenshot_utr||"—"}</td><td>{result.bank_transaction?money(result.bank_transaction.credit):"—"}</td><td><StatusTag value={result.status}/></td><td>{(result.reasons||[]).join(", ")||"—"}</td></>}</tr>)}</tbody></table></div>:<div className="empty-state"><div className="empty-symbol"><Banknote size={25}/></div><h3>No results yet</h3><p>Upload evidence and run the verification workflow.</p><button className="primary-action" onClick={()=>setPage("new")}>Continue workflow <ArrowRight size={16}/></button></div>}
           </section>
-          <section className="report-section"><div className="section-heading"><div><span className="eyebrow">OCR OUTPUT</span><h2>Extracted claims <span className="inline-count">{claims.length}</span></h2><p>Details read from the submitted payment screenshots.</p></div></div>
-            {claims.length ? <div className="report-table-wrap"><table className="report-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>TRANSACTION DATE</th><th>SENDER</th><th>EXTRACTION</th></tr></thead><tbody>{claims.map(claim=><tr key={claim.claim_id}><td>{claim.screenshot_filename}</td><td>{money(claim.amount)}</td><td className="mono">{claim.utr||"—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name||"—"}</td><td><StatusTag value={claim.needs_review?"Needs review":"Extracted"}/></td></tr>)}</tbody></table></div> : <div className="empty-state compact">No screenshots have been uploaded for this event.</div>}
-          </section>
+          {screenshotOnlyResults&&results.length>0&&<section className="ledger-panel report-section"><div className="section-heading"><div><span className="eyebrow">IMAGE FORENSICS</span><h2>Evidence breakdown</h2><p>Independent screening is the default. Reference comparison is extra evidence when available.</p></div></div><div className="evidence-card-list">{results.map(result=><EvidenceDetails result={result} key={result.result_id}/>)}</div></section>}
+          <section className="ledger-panel report-section"><div className="section-heading"><div><span className="eyebrow">OCR / EXTRACTED DATA</span><h2>Payment claims <span className="inline-count">{claims.length}</span></h2><p>Values read from participant screenshots. Missing fields should be reviewed.</p></div></div>{claims.length?<div className="report-table-wrap"><table className="report-table"><thead><tr><th>FILE</th><th>AMOUNT</th><th>UTR</th><th>DATE</th><th>SENDER</th><th>EXTRACTION</th></tr></thead><tbody>{claims.map(claim=><tr key={claim.claim_id}><td>{claim.screenshot_filename}</td><td>{money(claim.amount)}</td><td className="mono">{claim.utr||"—"}</td><td>{shortDate(claim.transaction_date)}</td><td>{claim.sender_name||"—"}</td><td><StatusTag value={claim.needs_review?"Needs review":"Extracted"}/></td></tr>)}</tbody></table></div>:<div className="empty-state compact">No screenshots uploaded yet.</div>}</section>
         </>}
-        {activeResult && (() => {
-          const claim = claims.find(item => item.claim_id === activeResult.claim_id);
-          const checks = activeResult.checks || {};
-          const bank = activeResult.bank_transaction;
-          const checkItems = [
-            ["UTR / transaction ID", checks.utr_matched],
-            ["Amount", checks.amount_matched],
-            ["Transaction date", checks.date_matched],
-            ["Sender name", checks.sender_matched]
-          ];
-          const explanation = activeResult.status === "MATCHED"
-            ? "The available payment details agree with the corresponding incoming bank credit."
-            : (activeResult.reasons || []).join(" · ") || "This payment needs additional review.";
-          return <div className="verification-modal-backdrop" onMouseDown={event => { if(event.target === event.currentTarget) setActiveResult(null); }}>
-            <section className="verification-modal" role="dialog" aria-modal="true" aria-labelledby="verification-modal-title">
-              <div className="verification-modal-head">
-                <div><span className="eyebrow">PAYMENT REVIEW / CLAIM #{activeResult.claim_id}</span><h2 id="verification-modal-title">Verification details</h2></div>
-                <button className="icon-action" onClick={()=>setActiveResult(null)} aria-label="Close verification details"><X size={18}/></button>
-              </div>
-              <div className="verification-modal-status"><StatusTag value={activeResult.status}/><p>{explanation}</p></div>
-              <div className="verification-detail-grid">
-                <section className="verification-detail-card">
-                  <span className="eyebrow">FROM PAYMENT SCREENSHOT</span>
-                  <h3>Claimed details</h3>
-                  <dl>
-                    <div><dt>File</dt><dd>{activeResult.screenshot_filename || claim?.screenshot_filename || "—"}</dd></div>
-                    <div><dt>Amount</dt><dd>{money(claim?.amount ?? activeResult.screenshot_amount)}</dd></div>
-                    <div><dt>UTR</dt><dd className="mono">{claim?.utr || activeResult.screenshot_utr || "—"}</dd></div>
-                    <div><dt>Date</dt><dd>{shortDate(claim?.transaction_date)}</dd></div>
-                    <div><dt>Sender</dt><dd>{claim?.sender_name || "Not extracted"}</dd></div>
-                  </dl>
-                </section>
-                <section className="verification-detail-card">
-                  <span className="eyebrow">FROM BANK STATEMENT</span>
-                  <h3>Recipient-side record</h3>
-                  {bank ? <dl>
-                    <div><dt>Statement row</dt><dd>{bank.statement_row ?? "—"}</dd></div>
-                    <div><dt>Credit received</dt><dd>{money(bank.credit)}</dd></div>
-                    <div><dt>UTR</dt><dd className="mono">{bank.utr || "—"}</dd></div>
-                    <div><dt>Transaction date</dt><dd>{shortDate(bank.date)}</dd></div>
-                    <div><dt>Narration</dt><dd>{bank.description || "Not available"}</dd></div>
-                  </dl> : <p className="no-bank-record">No corresponding bank transaction was linked to this claim.</p>}
-                </section>
-              </div>
-              <section className="verification-checks">
-                <span className="eyebrow">COMPARISON BREAKDOWN</span>
-                <div>{checkItems.map(([label,value])=><div className="verification-check-row" key={label}>
-                  <span>{label}</span><strong className={value === true ? "check-pass" : value === false ? "check-fail" : "check-na"}>{value === true ? "Match" : value === false ? "Does not match" : "Not available"}</strong>
-                </div>)}</div>
-              </section>
-              {(activeResult.reasons || []).length > 0 && <section className="verification-reasons">
-                <span className="eyebrow">SYSTEM NOTES</span>
-                <ul>{activeResult.reasons.map((reason,index)=><li key={index}>{reason.replaceAll("_"," ")}</li>)}</ul>
-              </section>}
-              <div className="verification-modal-foot"><span>Evidence is compared deterministically. A screenshot alone does not confirm receipt.</span><button className="ink-button" onClick={()=>setActiveResult(null)}>Close details <Check size={15}/></button></div>
-            </section>
-          </div>;
-        })()}
-        <footer className="site-footer"><span>EVIDENTPAY / 2026</span><span>BUILT AROUND THE RECEIVING ACCOUNT <ShieldCheck size={15}/></span></footer>
+        <footer className="site-footer"><span>EVIDENTPAY — PAYMENT INTELLIGENCE</span><span>SCREENING ≠ PAYMENT CONFIRMATION <ShieldCheck size={14}/></span></footer>
       </main>
     </div>
   );

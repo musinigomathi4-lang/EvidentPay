@@ -1,43 +1,28 @@
-
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
 venv/
-myenv/
-.env/
 .venv/
-
-# Environment secrets
 .env
 .env.*
 !.env.example
 
-# SQLite databases
+# Database
 *.db
 *.sqlite
 *.sqlite3
 
+# Uploaded/runtime files
+uploads/*
+!uploads/.gitkeep
+
 # Frontend
 node_modules/
-frontend/dist/
-frontend/.vite/
+dist/
+.vite/
 
-# IDE
+# Editors and operating system
 .vscode/
 .idea/
-
-# OS
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.bak
