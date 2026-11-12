@@ -13,6 +13,7 @@ import cv2
 import pytesseract
 
 from .image_service import load_image, amount_digits_image
+from ..utils.helpers import extract_utr
 from ..utils.validators import (
     AMOUNT_RE,
     is_valid_utr,
@@ -206,14 +207,29 @@ def extract_text_fields(img):
 
     flags = []
 
-    # UTR: only accept an exact 12-digit transaction ID.
-    utr_match = re.search(
-        r"UPI\s+transaction\s+ID\s*\n*\s*(\d{12})\b",
+    # UTR: tolerate common labels and OCR spacing/line-break differences.
+    # Only inspect text following a reference label to avoid false matches.
+    utr_label = re.search(
+        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
+        r"\s*[:#-]?\s*",
         text,
         re.I,
     )
+    utr = None
+    if utr_label:
+        utr = extract_utr(text[utr_label.end():utr_label.end() + 120])
 
-    utr = utr_match.group(1) if utr_match else None
+    # Retry with whitespace normalized for OCR output that splits the label.
+    if utr is None:
+        compact_text = re.sub(r"[ \t]+", " ", text)
+        utr_label = re.search(
+            r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
+            r"\s*[:#-]?\s*",
+            compact_text,
+            re.I,
+        )
+        if utr_label:
+            utr = extract_utr(compact_text[utr_label.end():utr_label.end() + 120])
 
     if utr is None:
         flags.append("utr_not_found")
