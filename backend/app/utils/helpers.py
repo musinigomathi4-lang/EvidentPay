@@ -70,6 +70,29 @@ def extract_utr(*texts):
     return None
 
 
+def extract_labeled_utr(text):
+    """Find a UTR near a UPI/reference label in OCR text."""
+    raw = str(text or "")
+    label = re.search(
+        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
+        r"\s*[:#-]?\s*",
+        raw,
+        re.I,
+    )
+    if label:
+        found = extract_utr(raw[label.end():label.end() + 160])
+        if found:
+            return found
+    compact = re.sub(r"[ \t]+", " ", raw)
+    label = re.search(
+        r"(?:UPI\s*)?(?:transaction\s*)?(?:ID|reference|ref(?:erence)?\s*no)"
+        r"\s*[:#-]?\s*",
+        compact,
+        re.I,
+    )
+    return extract_utr(compact[label.end():label.end() + 160]) if label else None
+
+
 def hamming(a: str, b: str) -> int:
     """Number of differing positions between two equal-length strings (else a large number)."""
     if len(a) != len(b):
